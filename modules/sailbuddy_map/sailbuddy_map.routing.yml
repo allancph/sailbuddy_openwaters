@@ -1,0 +1,7 @@
+sailbuddy_map.settings:
+  path: '/admin/config/system/sailbuddy-map'
+  defaults:
+    _form: '\Drupal\sailbuddy_map\Form\SailbuddyMapSettingsForm'
+    _title: 'Sailbuddy Map'
+  requirements:
+    _permission: 'administer site configuration'
