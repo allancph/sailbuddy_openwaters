@@ -1,0 +1,22 @@
+<?php
+
+/**
+ * @file
+ * Sailbuddy Map module hooks.
+ */
+
+/**
+ * Implements hook_theme().
+ */
+function sailbuddy_map_theme($existing, $type, $theme, $path) {
+  return [
+    'sailbuddy_map' => [
+      'variables' => [
+        'map_id' => NULL,
+        'height' => '500px',
+        'attributes' => [],
+      ],
+      'template' => 'sailbuddy-map',
+    ],
+  ];
+}
