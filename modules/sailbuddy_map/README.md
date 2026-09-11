@@ -58,6 +58,22 @@ og drupalSettings (`sailbuddy_map_overlays`) på hvert kort; det nye behavior
 `sailbuddyOverlays` i `js/sailbuddy-map-overlays.js` bindes til `Drupal.Leaflet[mapid].lMap`
 (instansen som `leaflet.drupal.js` eksponerer) og tilføjer AIS-geojson-lag + tides-popup.
 
+#### Lag-menu (AIS / Tidevand / Vind)
+
+Som på det gamle sailbuddy.com vises en sammenklappelig lag-menu (øverst til højre på kortet) når
+der er mindst ét overlay. Menuen er en standard `L.control.layers` (collapsed) og indeholder:
+
+| Overlay | Beskrivelse | Standard |
+|---|---|---|
+| **AIS-skibe** | Levende skibe (GeoJSON fra `ais_api`) | til |
+| **Tidevand** | Reference-stationer fra `https://api.openwaters.io/tides/stations` (via `tide_stations`, filtreret til viewport) | til |
+| **Vind** | Vind-tiles fra OpenWeatherMap. Genbruger kilde + API-nøgle fra det gamle `leaflet_layers.map_layer.openwxwind`-config, hvis tilstede (`wind_tiles`) | fra |
+
+- Klik på menuikonet (⛁) folder menuens lag-liste ud; kryds lag til/fra direkte.
+- AIS- og tidevandslaget hentes kun når laget er synligt (`map.hasLayer`), så refresh-loops
+  kører ikke i baggrunden for skjulte lag.
+- Tidevands-popup ved klik gælder nærmeste synlige station (inden for 20 km); ellers klikpunktet.
+
 ## Sådan bruges blokken (egen renderer)
 
 Desuden leverer modulet en block, en views-style (`Sailbuddy Map`) og en fieldformatter
@@ -86,6 +102,8 @@ falde over versions-brud m.m.
 | Kort | `https://tiles.openwaters.io/{chart}/style.json` | Seamap / seascape |
 | AIS | `https://ais.openwaters.io/v1/vessels?bbox=…` | GeoJSON; **bbox-max-diagonal ~1400 km** — større views returnerer 400 ("bbox not allowed for this key") |
 | Tidevand | `https://api.openwaters.io/tides/extremes?latitude&longitude&units=meters` | `units` skal være `meters`/`feet` (modulet oversætter `m/ft/fm`) |
+| Tidevand-stationer | `https://api.openwaters.io/tides/stations?latitude&longitude&radius` | Ajourføres ved panning; bruges til Tidevand-laget |
+| Vind | `https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=…` | Vind-laget; kilde/nøgle arves fra `leaflet_layers.map_layer.openwxwind` |
 
 ## Bemærkninger / kendte ting
 

@@ -9,8 +9,11 @@
     enable_tides: true,
     tides_units: 'm',
     ais_api: 'https://ais.openwaters.io/v1/vessels',
-    tide_api: 'https://api.openwaters.io/tides/extremes'
+    tide_api: 'https://api.openwaters.io/tides/extremes',
+    tide_stations: 'https://api.openwaters.io/tides/stations',
+    wind_tiles: null
   };
+  var MAX_DIAGONAL_KM = 1400;
 
   function round(v, p) {
     var f = Math.pow(10, p);
@@ -27,6 +30,17 @@
       };
       pending = window.setTimeout(now, delay);
     };
+  }
+
+  function bboxDiagonalKm(b) {
+    var sw = b.getSouthWest();
+    var ne = b.getNorthEast();
+    var dLat = ne.lat - sw.lat;
+    var dLng = ne.lng - sw.lng;
+    var midLat = (ne.lat + sw.lat) / 2 * Math.PI / 180;
+    var kmLat = dLat * 111.32;
+    var kmLng = dLng * 111.32 * Math.cos(midLat);
+    return Math.sqrt(kmLat * kmLat + kmLng * kmLng);
   }
 
   function vesselStyle(feature) {
@@ -77,33 +91,54 @@
     }
   }
 
-  var MAX_DIAGONAL_KM = 1400;
+  function makeAisLayer() {
+    return L.geoJSON(null, {
+      pointToLayer: function (feature, latlng) {
+        return L.circleMarker(latlng, vesselStyle(feature));
+      },
+      onEachFeature: vesselPopup
+    });
+  }
 
-  function bboxDiagonalKm(b) {
-    var sw = b.getSouthWest();
-    var ne = b.getNorthEast();
-    var dLat = ne.lat - sw.lat;
-    var dLng = ne.lng - sw.lng;
-    var midLat = (ne.lat + sw.lat) / 2 * Math.PI / 180;
-    var kmLat = dLat * 111.32;
-    var kmLng = dLng * 111.32 * Math.cos(midLat);
-    return Math.sqrt(kmLat * kmLat + kmLng * kmLng);
+  function makeTidesStationLayer() {
+    return L.geoJSON(null, {
+      pointToLayer: function (feature, latlng) {
+        var type = feature.properties && feature.properties.type;
+        var opts = {
+          radius: type === 'reference' ? 6 : 4,
+          fillColor: '#0ea5e9',
+          color: '#075985',
+          weight: 1,
+          fillOpacity: 0.85
+        };
+        return L.circleMarker(latlng, opts);
+      },
+      onEachFeature: function (feature, layer) {
+        var p = feature.properties || {};
+        var html = '<div><b>' + (p.name || '') + '</b><br>' +
+          (p.type ? 'Type: ' + p.type + '<br>' : '') +
+          (p.country ? 'Land: ' + p.country : '') + '</div>';
+        layer.bindPopup(html);
+        layer.on('click', function (e) {
+          L.DomEvent.stopPropagation(e.originalEvent);
+        });
+      }
+    });
   }
 
   function attachOverlays(map, mapid, cfg) {
+    var overlays = {};
+
+    // --- AIS layer ---
     var aisLayer = null;
+    var aisTimer = null;
 
     if (cfg.enable_ais) {
-      aisLayer = L.geoJSON(null, {
-        pointToLayer: function (feature, latlng) {
-          return L.circleMarker(latlng, vesselStyle(feature));
-        },
-        onEachFeature: vesselPopup
-      });
-      aisLayer.addTo(map);
+      aisLayer = makeAisLayer();
+      overlays['AIS-skibe'] = aisLayer;
 
       var loadAis = function () {
-        if (!aisLayer) return;
+        if (!aisLayer || !map.hasLayer(aisLayer)) return;
         var b = map.getBounds().pad(0.1);
         if (bboxDiagonalKm(b) > MAX_DIAGONAL_KM) {
           aisLayer.clearLayers();
@@ -126,13 +161,67 @@
 
       map.on('moveend', throttle(loadAis, 800));
       loadAis();
-      window.setInterval(loadAis, (cfg.ais_refresh || 30) * 1000);
     }
 
+    // --- Tides station layer (overlay) ---
+    var tidesLayer = null;
+    var tidesTimer = null;
+
     if (cfg.enable_tides) {
+      tidesLayer = makeTidesStationLayer();
+      overlays['Tidevand'] = tidesLayer;
+
+      var loadTides = function () {
+        if (!tidesLayer || !map.hasLayer(tidesLayer)) return;
+        var b = map.getBounds().pad(0.1);
+        var center = b.getCenter();
+        var radius = Math.round(bboxDiagonalKm(b) / 2 / 50) * 50;
+        fetch(cfg.tide_stations + '?latitude=' + center.lat + '&longitude=' + center.lng + '&radius=' + radius, { cache: 'force-cache' })
+          .then(function (r) {
+            if (!r.ok) throw new Error('Tides stations HTTP ' + r.status);
+            return r.json();
+          })
+          .then(function (data) {
+            tidesLayer.clearLayers();
+            if (data && data.length) {
+              tidesLayer.addData(data.map(function (s) {
+                return {
+                  type: 'Feature',
+                  properties: {
+                    name: s.name,
+                    type: s.type,
+                    country: s.country,
+                    timezone: s.timezone,
+                    id: s.id,
+                    latitude: s.latitude,
+                    longitude: s.longitude
+                  },
+                  geometry: {
+                    type: 'Point',
+                    coordinates: [s.longitude, s.latitude]
+                  }
+                };
+              }));
+            }
+          })
+          .catch(function () {});
+      };
+
+      map.on('moveend', throttle(loadTides, 1000));
+
+      // Keep the click-popup predictions, but only for stations we know about.
       map.on('click', function (e) {
-        var lat = round(e.latlng.lat, 4);
-        var lng = round(e.latlng.lng, 4);
+        var best = null;
+        var bestDist = Infinity;
+        if (tidesLayer && map.hasLayer(tidesLayer)) {
+          tidesLayer.eachLayer(function (l) {
+            var d = l.getLatLng().distanceTo(e.latlng);
+            if (d < bestDist) { bestDist = d; best = l; }
+          });
+        }
+        var target = best && bestDist <= 20000 ? best.getLatLng() : e.latlng;
+        var lat = round(target.lat, 4);
+        var lng = round(target.lng, 4);
         var units = UNIT_MAP[cfg.tides_units] || 'meters';
         fetch(cfg.tide_api + '?latitude=' + lat + '&longitude=' + lng + '&units=' + units)
           .then(function (r) {
@@ -144,13 +233,46 @@
             if (!extremes.length) return;
             var unit = data.units || cfg.tides_units;
             L.popup()
-              .setLatLng(e.latlng)
+              .setLatLng(target)
               .setContent(buildExtremesHtml(data.station, extremes, unit))
               .openOn(map);
           })
           .catch(function () {});
       });
     }
+
+    // --- Wind overlay (reuses existing openweathermap wind tiles) ---
+    var windLayer = null;
+    if (cfg.wind_tiles) {
+      windLayer = L.tileLayer(cfg.wind_tiles, {
+        attribution: 'Vind &copy; <a href="https://openweathermap.org">OpenWeatherMap</a>',
+        opacity: 0.85,
+        maxZoom: 18
+      });
+      overlays['Vind'] = windLayer;
+    }
+
+    // --- Build the layer menu (collapsed) and default state ---
+    var layerControl = null;
+    if (Object.keys(overlays).length) {
+      layerControl = L.control.layers(null, overlays, { collapsed: true, position: 'topright' });
+      layerControl.addTo(map);
+    }
+
+    // Only start refresh loops for layers that are actually visible.
+    var startLoops = function () { loadAis(); loadTides(); };
+    if (aisLayer) aisLayer.addTo(map);
+    if (tidesLayer) tidesLayer.addTo(map);
+
+    if (aisTimer) window.clearInterval(aisTimer);
+    if (cfg.enable_ais && cfg.ais_refresh) {
+      aisTimer = window.setInterval(loadAis, (cfg.ais_refresh || 30) * 1000);
+    }
+
+    map.on('overlayadd overlayremove', function () {
+      if (map.hasLayer(aisLayer)) loadAis();
+      if (map.hasLayer(tidesLayer)) loadTides();
+    });
 
     if (cfg.enable_fit) {
       L.DomEvent.on(map.getContainer(), 'load', function () {
