@@ -5,3 +5,11 @@ sailbuddy_map.settings:
     _title: 'Sailbuddy Map'
   requirements:
     _permission: 'administer site configuration'
+
+sailbuddy_map.style:
+  path: '/sailbuddy-map/style/{chart}'
+  defaults:
+    _controller: '\Drupal\sailbuddy_map\Controller\SailbuddyMapStyleController::build'
+    chart: seamap
+  requirements:
+    _access: 'TRUE'
