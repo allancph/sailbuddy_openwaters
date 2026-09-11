@@ -67,3 +67,23 @@ function sailbuddy_map_leaflet_map_info() {
 
   return $map_info;
 }
+
+/**
+ * Implements hook_preprocess_leaflet_map().
+ *
+ * Attaches the AIS overlay + tide prediction library and global settings
+ * to every Leaflet map rendered on a page.
+ */
+function sailbuddy_map_preprocess_leaflet_map(array &$variables) {
+  $config = \Drupal::config('sailbuddy_map.settings');
+
+  $variables['#attached']['library'][] = 'sailbuddy_map/sailbuddy_map.overlays';
+  $variables['#attached']['drupalSettings']['sailbuddy_map_overlays'] = [
+    'enable_ais'   => (bool) $config->get('enable_ais'),
+    'ais_refresh'  => (int) $config->get('ais_refresh') ?: 30,
+    'enable_tides' => (bool) $config->get('enable_tides'),
+    'tides_units'  => $config->get('tides_units') ?: 'm',
+    'ais_api'      => 'https://ais.openwaters.io/v1/vessels',
+    'tide_api'     => 'https://api.openwaters.io/tides/extremes',
+  ];
+}
