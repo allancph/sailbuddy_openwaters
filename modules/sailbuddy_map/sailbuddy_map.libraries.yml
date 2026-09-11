@@ -1,8 +1,10 @@
 maplibre:
-  remote: true
+  remote: https://unpkg.com
+  version: 2.4.0
   license:
-    name: "BSD-2-Clause"
-    url: "https://github.com/maplibre/maplibre-gl-js/blob/main/LICENSE"
+    name: BSD-3-Clause
+    url: https://github.com/maplibre/maplibre-gl-js/blob/main/LICENSE.txt
+    gpl-compatible: true
   css:
     theme:
       https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css: { type: external }
@@ -10,10 +12,12 @@ maplibre:
     https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js: { type: external }
 
 leaflet:
-  remote: true
+  remote: https://unpkg.com
+  version: 1.9.4
   license:
-    name: "BSD-2-Clause"
-    url: "https://github.com/Leaflet/Leaflet/blob/master/LICENSE"
+    name: BSD-2-Clause
+    url: https://github.com/Leaflet/Leaflet/blob/main/LICENSE
+    gpl-compatible: true
   css:
     theme:
       https://unpkg.com/leaflet@1.9.4/dist/leaflet.css: { type: external }
@@ -29,3 +33,11 @@ sailbuddy_map.init:
   dependencies:
     - sailbuddy_map/maplibre
     - sailbuddy_map/leaflet
+
+sailbuddy_map.overlays:
+  js:
+    js/sailbuddy-map-overlays.js: {}
+  dependencies:
+    - leaflet/leaflet-drupal
+    - core/drupalSettings
+    - core/once

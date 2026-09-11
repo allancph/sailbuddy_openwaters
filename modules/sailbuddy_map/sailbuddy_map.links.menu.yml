@@ -1,0 +1,6 @@
+sailbuddy_map.settings:
+  title: 'Sailbuddy Map'
+  description: 'Configure Sailbuddy Map defaults and OpenWaters dataset discovery'
+  parent: system.admin_config_system
+  route_name: sailbuddy_map.settings
+  weight: 100

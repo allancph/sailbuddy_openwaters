@@ -1,0 +1,14 @@
+{
+  "name": "allancph/sailbuddy_map",
+  "description": "Sailbuddy Map Drupal 11 module to display OpenWaters datasets",
+  "type": "drupal-module",
+  "require": {
+    "php": "^8.1"
+  },
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Drupal\\sailbuddy_map\\": "src/"
+    }
+  }
+}
