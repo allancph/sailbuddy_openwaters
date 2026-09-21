@@ -57,7 +57,7 @@ function sailbuddy_map_leaflet_map_info() {
     'layers' => [
       'OpenWaters Seamap' => [
         'type' => 'vector',
-        'urlTemplate' => Url::fromRoute('sailbuddy_map.style', ['chart' => 'seamap'])->setAbsolute(TRUE)->toString(),
+        'urlTemplate' => Url::fromRoute('sailbuddy_map.style', ['chart' => 'seamap'])->toString(),
         'options' => [
           'attribution' => '© <a href="https://openwaters.io">OpenWaters</a> Seamap · © OpenStreetMap contributors',
         ],
@@ -96,5 +96,8 @@ function sailbuddy_map_preprocess_leaflet_map(array &$variables) {
     'tide_api'        => 'https://api.openwaters.io/tides/extremes',
     'tide_stations'   => 'https://api.openwaters.io/tides/stations',
     'wind_tiles'      => $wind_tiles,
+    'wind_particles'  => TRUE,
+    'wind_particles_url' => \Drupal\Core\Url::fromRoute("openmeteo_weather.wind_grid", [], ['language' => \Drupal::languageManager()->getLanguage('en')])->setAbsolute(TRUE)->toString(),
+    'wind_particles_url_eu' => \Drupal\Core\Url::fromRoute("openmeteo_weather.wind_grid_eu", [], ['language' => \Drupal::languageManager()->getLanguage('en')])->setAbsolute(TRUE)->toString(),
   ];
 }

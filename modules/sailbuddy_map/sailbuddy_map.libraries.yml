@@ -41,3 +41,12 @@ sailbuddy_map.overlays:
     - leaflet/leaflet-drupal
     - core/drupalSettings
     - core/once
+leaflet-velocity:
+  remote: https://unpkg.com/leaflet-velocity@2.1.4
+  version: 2.1.4
+  license:
+    name: MIT
+    url: https://github.com/onaci/leaflet-velocity/blob/master/LICENSE
+    gpl-compatible: true
+  js:
+    js/vendor/leaflet-velocity.js: { minified: true }
