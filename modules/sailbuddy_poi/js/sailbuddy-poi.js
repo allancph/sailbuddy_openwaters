@@ -4,6 +4,7 @@
   var DEFAULTS = {
     zoom_min: 10,
     groupLabel: 'POI',
+    auto_on_min_zoom: 13,
     providers: {}
   };
   var MAX_DIAGONAL_KM = 700;
@@ -317,6 +318,17 @@
       poiGroup.addLayer(new ActiveCaptainLayer(cfg, providerId));
     });
     addToLayerControl(map, poiGroup, cfg.groupLabel || 'POI');
+    // Detail maps (harbours, anchorages — zoomed far in) turn the layer on
+    // automatically: local POIs are exactly what a visitor zooms in for.
+    // Overview maps stay clean (everything off) until the visitor toggles it.
+    var autoOn = cfg.auto_on_min_zoom || 13;
+    if (map.getZoom() >= autoOn && typeof map.addLayer === 'function') {
+      window.setTimeout(function () {
+        if (!map.hasLayer(poiGroup)) {
+          map.addLayer(poiGroup);
+        }
+      }, 1200);
+    }
   }
 
   Drupal.behaviors.sailbuddyPoi = {
