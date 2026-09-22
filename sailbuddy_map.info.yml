@@ -1,7 +1,0 @@
-name: Sailbuddy Map
-type: module
-description: 'Provides a block and Views integration to embed OpenWaters map layers and datasets (MapLibre primary, Leaflet fallback).'
-core_version_requirement: ^11
-package: Custom
-version: 1.0
-php: '8.1'

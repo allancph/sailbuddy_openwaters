@@ -1,0 +1,7 @@
+name: Sailbuddy POI
+type: module
+description: 'Point-of-Interest layers for Sailbuddy maps. Ships the Garmin ActiveCaptain provider (bounding-box API + WebView), extensible through PoiProvider plugins (e.g. Overpass).'
+core_version_requirement: ^11
+package: Custom
+version: 1.0
+php: '8.1'
