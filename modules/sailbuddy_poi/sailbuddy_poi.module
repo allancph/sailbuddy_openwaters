@@ -22,7 +22,7 @@ function sailbuddy_poi_preprocess_leaflet_map(array &$variables) {
     'zoom_min' => (int) $config->get('zoom_min') ?: 10,
     'providers' => [
       $provider => [
-        'label' => 'ActiveCaptain',
+        'label' => 'POI',
         'api' => Url::fromRoute('sailbuddy_poi.provider', ['provider' => $provider])->setAbsolute(TRUE)->toString(),
         'webview' => Url::fromRoute('sailbuddy_poi.webview', ['provider' => $provider, 'poiId' => '__POI__'])->setAbsolute(TRUE)->toString(),
       ],

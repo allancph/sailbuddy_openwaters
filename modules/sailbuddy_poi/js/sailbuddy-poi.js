@@ -116,17 +116,6 @@
       html += '<div class="sailbuddy-poi-count">' + esc(String(p.count)) + ' ' + esc(Drupal.t('POI i området')) + '</div>';
     }
 
-    if (p.webview || p.id) {
-      var poiId = p.id;
-      if (!poiId && p.webview) {
-        poiId = String(p.webview).split('/').filter(Boolean).pop();
-      }
-      if (poiId && cfg.providers[providerId] && cfg.providers[providerId].webview) {
-        var url = cfg.providers[providerId].webview.replace('__POI__', poiId);
-        html += '<button type="button" class="sailbuddy-poi-open" data-url="' + esc(url) + '">' +
-          esc(Drupal.t('Vis / rediger i ActiveCaptain')) + '</button>';
-      }
-    }
     else if (p.type === 'cluster') {
       html += '<div class="sailbuddy-poi-nozoom">' + esc(Drupal.t('Zoom ind for at se de enkelte POI\'er')) + '</div>';
     }
@@ -135,46 +124,7 @@
     var content = document.createElement('div');
     content.className = 'sailbuddy-poi-popup-wrap';
     content.innerHTML = html;
-    var btn = content.querySelector('.sailbuddy-poi-open');
-    if (btn) {
-      btn.addEventListener('click', function () {
-        openModal(btn.getAttribute('data-url'));
-      });
-    }
     layer.bindPopup(content);
-  }
-
-  function openModal(url) {
-    var modal = document.getElementById('sailbuddy-poi-modal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.id = 'sailbuddy-poi-modal';
-      modal.className = 'sailbuddy-poi-modal';
-      modal.innerHTML =
-        '<div class="sailbuddy-poi-modal-frame">' +
-        '<div class="sailbuddy-poi-modal-bar">' +
-        '<span class="sailbuddy-poi-modal-title">ActiveCaptain</span>' +
-        '<button type="button" class="sailbuddy-poi-modal-close" aria-label="Luk">&times;</button>' +
-        '</div>' +
-        '<iframe src="about:blank" allowfullscreen></iframe>' +
-        '</div>';
-      document.body.appendChild(modal);
-      var close = function () {
-        modal.className = 'sailbuddy-poi-modal';
-        var frame = modal.querySelector('iframe');
-        frame.src = 'about:blank';
-      };
-      modal.querySelector('.sailbuddy-poi-modal-close').addEventListener('click', close);
-      modal.addEventListener('click', function (e) {
-        if (e.target === modal) close();
-      });
-      document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && modal.className.indexOf('is-open') !== -1) close();
-      });
-    }
-    var frame = modal.querySelector('iframe');
-    frame.src = url;
-    modal.className = 'sailbuddy-poi-modal is-open';
   }
 
   var ActiveCaptainLayer = L.Layer.extend({
