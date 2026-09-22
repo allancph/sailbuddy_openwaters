@@ -25,16 +25,43 @@ class OverpassProvider extends PluginBase implements PoiProviderInterface, Conta
   use StringTranslationTrait;
 
   /**
-   * Maps a configured tag value to a normalized POI type (see JS TYPE_LABELS).
+   * Maps a configured Overpass tag ("key=value") to a normalized POI type
+   * (see JS TYPE_LABELS / FALLBACK_COLORS in sailbuddy-poi.js).
    *
    * @var array
    */
-  protected const TYPE_MAP = [
-    'fuel' => 'fuel',
-    'drinking_water' => 'drinking_water',
-    'chandlery' => 'business',
-    'boatbuilder' => 'business',
-    'charging_station' => 'charger',
+  protected const TYPE_BY_TAG = [
+    'amenity=fuel' => 'fuel',
+    'amenity=drinking_water' => 'drinking_water',
+    'amenity=toilets' => 'toilets',
+    'amenity=recycling' => 'recycling',
+    'amenity=atm' => 'atm',
+    'amenity=pharmacy' => 'pharmacy',
+    'amenity=post_office' => 'post',
+    'amenity=doctors' => 'doctor',
+    'amenity=restaurant' => 'food',
+    'amenity=cafe' => 'food',
+    'amenity=bar' => 'food',
+    'amenity=pub' => 'food',
+    'amenity=fast_food' => 'food',
+    'amenity=ice_cream' => 'food',
+    'shop=supermarket' => 'shop',
+    'shop=convenience' => 'shop',
+    'shop=chandlery' => 'chandlery',
+    'shop=laundry' => 'laundry',
+    'craft=boatbuilder' => 'boatbuilder',
+    'tourism=museum' => 'tourist',
+    'tourism=attraction' => 'tourist',
+    'tourism=artwork' => 'tourist',
+    'tourism=viewpoint' => 'viewpoint',
+    'tourism=hotel' => 'accommodation',
+    'tourism=hostel' => 'accommodation',
+    'tourism=camp_site' => 'accommodation',
+    'tourism=caravan_site' => 'accommodation',
+    'amenity=bicycle_rental' => 'rental',
+    'amenity=escooter_rental' => 'rental',
+    'amenity=bicycle_repair_station' => 'bike_repair',
+    'leisure=marina' => 'marina',
   ];
 
   /**
@@ -144,8 +171,7 @@ class OverpassProvider extends PluginBase implements PoiProviderInterface, Conta
         continue;
       }
 
-      $type_key = $this->detectTypeKey($tags_el);
-      $type = self::TYPE_MAP[$type_key] ?? 'poi';
+      $type = $this->detectType($tags_el);
       $name = (string) ($tags_el['name'] ?? '');
       if ($name === '' && isset($tags_el['brand'])) {
         $name = (string) $tags_el['brand'];
@@ -170,24 +196,25 @@ class OverpassProvider extends PluginBase implements PoiProviderInterface, Conta
   }
 
   /**
-   * Picks which configured tag value an element matches, in config order.
+   * Picks which configured tag an element matches, in config order, and maps
+   * it to a normalized POI type.
    *
    * @param array $tags
    *   OSM tags of the element.
    *
-   * @return string|null
-   *   The matched tag value, or NULL.
+   * @return string
+   *   Normalized type (see TYPE_BY_TAG), or 'poi'.
    */
-  protected function detectTypeKey(array $tags) {
+  protected function detectType(array $tags) {
     $settings = $this->configFactory->get('sailbuddy_poi.settings');
     $configured = (array) ($settings->get('overpass_tags') ?: []);
     foreach ($configured as $tag) {
       $pair = array_map('trim', explode('=', (string) $tag, 2));
       if (count($pair) === 2 && isset($tags[$pair[0]]) && (string) $tags[$pair[0]] === $pair[1]) {
-        return $pair[1];
+        return self::TYPE_BY_TAG[$tag] ?? 'poi';
       }
     }
-    return NULL;
+    return 'poi';
   }
 
   /**
@@ -207,9 +234,6 @@ class OverpassProvider extends PluginBase implements PoiProviderInterface, Conta
       case 'drinking_water':
         return $this->t('Drikkevand');
 
-      case 'charger':
-        return $this->t('El-opladning');
-
       case 'boat_ramp':
         return $this->t('Bådrampe');
 
@@ -219,8 +243,53 @@ class OverpassProvider extends PluginBase implements PoiProviderInterface, Conta
       case 'anchorage':
         return $this->t('Ankerplads');
 
-      case 'business':
-        return $this->t('Forretning');
+      case 'toilets':
+        return $this->t('Toilet');
+
+      case 'recycling':
+        return $this->t('Genbrug / affald');
+
+      case 'atm':
+        return $this->t('Hæveautomat');
+
+      case 'pharmacy':
+        return $this->t('Apotek');
+
+      case 'food':
+        return $this->t('Mad & drikke');
+
+      case 'shop':
+        return $this->t('Butik / købmand');
+
+      case 'chandlery':
+        return $this->t('Sejlerforretning');
+
+      case 'boatbuilder':
+        return $this->t('Bådværft');
+
+      case 'laundry':
+        return $this->t('Vaskeri');
+
+      case 'post':
+        return $this->t('Post');
+
+      case 'doctor':
+        return $this->t('Læge');
+
+      case 'tourist':
+        return $this->t('Turistattraktion');
+
+      case 'viewpoint':
+        return $this->t('Udsigtspunkt');
+
+      case 'rental':
+        return $this->t('Cykel / éløbehjul-udlejning');
+
+      case 'bike_repair':
+        return $this->t('Cykelservice');
+
+      case 'accommodation':
+        return $this->t('Overnatning');
 
       default:
         return $this->t('POI');

@@ -3,6 +3,7 @@
 
   var DEFAULTS = {
     zoom_min: 10,
+    groupLabel: 'POI',
     providers: {}
   };
   var MAX_DIAGONAL_KM = 700;
@@ -13,13 +14,28 @@
     anchorage: 'Ankerplads',
     hazard: 'Fare',
     fuel: 'Brændstof',
+    toilets: 'Toilet',
+    drinking_water: 'Drikkevand',
+    recycling: 'Genbrug / affald',
+    atm: 'Hæveautomat',
+    pharmacy: 'Apotek',
+    food: 'Mad & drikke',
+    shop: 'Butik / købmand',
+    chandlery: 'Sejlerforretning',
+    boatbuilder: 'Bådværft',
+    laundry: 'Vaskeri',
+    post: 'Post',
+    doctor: 'Læge',
     lock: 'Sluse',
     bridge: 'Bro',
     boat_ramp: 'Bådrampe',
     business: 'Forretning',
     knowledge: 'Lokal viden',
-    drinking_water: 'Drikkevand',
-    charger: 'El-opladning',
+    tourist: 'Turistattraktion',
+    viewpoint: 'Udsigtspunkt',
+    rental: 'Cykel / éløbehjul',
+    bike_repair: 'Cykelservice',
+    accommodation: 'Overnatning',
     poi: 'POI'
   };
 
@@ -28,13 +44,28 @@
     anchorage: '#2563eb',
     hazard: '#dc2626',
     fuel: '#7c3aed',
+    toilets: '#64748b',
+    drinking_water: '#06b6d4',
+    recycling: '#22c55e',
+    atm: '#14b8a6',
+    pharmacy: '#e11d48',
+    food: '#ef4444',
+    shop: '#84cc16',
+    chandlery: '#ca8a04',
+    boatbuilder: '#92400e',
+    laundry: '#38bdf8',
+    post: '#0f766e',
+    doctor: '#b91c1c',
     knowledge: '#0891b2',
     boat_ramp: '#65a30d',
     lock: '#334155',
     bridge: '#92400e',
     business: '#ca8a04',
-    drinking_water: '#06b6d4',
-    charger: '#eab308',
+    tourist: '#a855f7',
+    viewpoint: '#f59e0b',
+    rental: '#8b5cf6',
+    bike_repair: '#16a34a',
+    accommodation: '#db2777',
     poi: '#475569'
   };
 
@@ -263,14 +294,15 @@
   }
 
   function attachProviders(map, cfg) {
+    // One combined "POI" menu entry holding every provider's layer — the
+    // visitor does not care whether a point came from ActiveCaptain or OSM.
+    var poiGroup = L.layerGroup([]);
     Object.keys(cfg.providers).forEach(function (providerId) {
       var def = cfg.providers[providerId];
       if (!def || !def.api) return;
-      var layer = new ActiveCaptainLayer(cfg, providerId);
-      addToLayerControl(map, layer, def.label || providerId);
-      // POI layers start OFF — the visitor turns them on in the layer menu.
-      // Nothing renders until zoomed in close regardless.
+      poiGroup.addLayer(new ActiveCaptainLayer(cfg, providerId));
     });
+    addToLayerControl(map, poiGroup, cfg.groupLabel || 'POI');
   }
 
   Drupal.behaviors.sailbuddyPoi = {
