@@ -15,7 +15,7 @@
     wind_particles: true,
     wind_particles_url: '/weather/wind-grid',
     wind_particles_maxspeed: 20,
-    initial_zoom: 11
+    initial_zoom: 10
   };
   var MAX_DIAGONAL_KM = 1400;
 
