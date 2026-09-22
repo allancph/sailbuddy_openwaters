@@ -1,0 +1,8 @@
+api_key_key: activecaptain
+environment: stage
+zoom_min: 10
+cache_ttl: 900
+endpoint_stage: 'https://marine.garmin.com/thirdparty-stage/api/v2/points-of-interest/bbox'
+endpoint_production: 'https://marine.garmin.com/thirdparty/api/v2/points-of-interest/bbox'
+webview_stage: 'https://activecaptain-stage.garmin.com/embed/webview'
+webview_production: 'https://activecaptain.garmin.com/embed/webview'

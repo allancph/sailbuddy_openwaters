@@ -1,0 +1,24 @@
+sailbuddy_poi.settings:
+  path: '/admin/config/system/sailbuddy-poi'
+  defaults:
+    _form: '\Drupal\sailbuddy_poi\Form\SailbuddyPoiSettingsForm'
+    _title: 'Sailbuddy POI'
+  requirements:
+    _permission: 'administer site configuration'
+
+sailbuddy_poi.provider:
+  path: '/sailbuddy-poi/{provider}'
+  defaults:
+    _controller: '\Drupal\sailbuddy_poi\Controller\PoiController::build'
+  requirements:
+    _permission: 'access content'
+    provider: '[a-z_]+'
+
+sailbuddy_poi.webview:
+  path: '/sailbuddy-poi/webview/{provider}/{poiId}'
+  defaults:
+    _controller: '\Drupal\sailbuddy_poi\Controller\PoiController::webview'
+  requirements:
+    _permission: 'access content'
+    provider: '[a-z_]+'
+    poiId: '[0-9]+|__POI__'
