@@ -14,7 +14,8 @@
     wind_tiles: null,
     wind_particles: true,
     wind_particles_url: '/weather/wind-grid',
-    wind_particles_maxspeed: 20
+    wind_particles_maxspeed: 20,
+    initial_zoom: 11
   };
   var MAX_DIAGONAL_KM = 1400;
 
@@ -572,7 +573,6 @@
       windGroup.addLayer(windLayerDk);
       windGroup.addLayer(windLayerEu);
       overlays[Drupal.t('Wind')] = windGroup;
-      windGroup.addTo(map);
       [[cfg.wind_particles_url, windLayerDk], [cfg.wind_particles_url_eu, windLayerEu]]
         .forEach(function (pair) { var url = pair[0], layer = pair[1];
           if (!url) return;
@@ -581,7 +581,6 @@
             .then(function (data) { layer.setData(data); })
             .catch(function (e) { console.error('Wind fetch fejl', url, e); });
         });
-      windGroup.addTo(map);
       [windLayerDk, windLayerEu].forEach(function(layer, idx) {
         var url = idx === 0 ? cfg.wind_particles_url : cfg.wind_particles_url_eu;
         if (!url) return;
@@ -618,9 +617,9 @@
       map._sailbuddyLayerControl = layerControl;
     }
 
-    if (aisLayer) aisLayer.addTo(map);
-    if (tidesLayer) tidesLayer.addTo(map);
-    if (windGroup) windGroup.addTo(map);
+    /* All overlays start OFF — the user picks from the layer menu. */
+
+    if (aisTimer) window.clearInterval(aisTimer);
 
     if (aisTimer) window.clearInterval(aisTimer);
     if (cfg.enable_ais && cfg.ais_refresh) {
@@ -665,6 +664,56 @@
             }
           }, 250);
         });
+      });
+    }
+  };
+
+Drupal.behaviors.sailbuddyInitialView = {
+    attach: function (context, settings) {
+      var cfg = Object.assign({}, DEFAULTS, (settings && settings.sailbuddy_map_overlays) || {});
+      if (!settings || !settings.leaflet) {
+        return;
+      }
+      Object.keys(settings.leaflet).forEach(function (mapid) {
+        var container = document.getElementById(mapid);
+        if (!container || container.dataset.sailbuddyInitialView) {
+          return;
+        }
+        var tries = 0;
+        var poll = window.setInterval(function () {
+          var inst = Drupal.Leaflet && Drupal.Leaflet[mapid];
+          if (inst && inst.lMap) {
+            window.clearInterval(poll);
+            container.dataset.sailbuddyInitialView = '1';
+            var map = inst.lMap;
+            // Only overview maps (coarse default zoom) are recentered on the
+            // visitor's position; detail maps (harbours, anchorages) keep their
+            // configured view.
+            if (map.getZoom() >= 9) {
+              return;
+            }
+            var zoomTo = Math.max(9, (cfg.initial_zoom || 11));
+            var fallback = function () {
+              if (map.getZoom() >= 9) {
+                return;
+              }
+              map.setView(map.getCenter(), zoomTo);
+            };
+            if (typeof map.locate === 'function') {
+              map.locate({ setView: false, enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
+              map.once('locationfound', function (e) {
+                map.setView(e.latlng, zoomTo);
+              });
+              map.once('locationerror', fallback);
+            }
+            else {
+              fallback();
+            }
+          }
+          else if (++tries > 100) {
+            window.clearInterval(poll);
+          }
+        }, 250);
       });
     }
   };
