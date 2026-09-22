@@ -1,0 +1,31 @@
+sailbuddy_map.init:
+  css:
+    theme:
+      css/sailbuddy_map.css: {}
+  js:
+    js/sailbuddy_map.js: {}
+  dependencies:
+    - leaflet/leaflet
+    - leaflet/maplibre-gl-js
+
+sailbuddy_map.overlays:
+  js:
+    js/sailbuddy-map-overlays.js: {}
+  dependencies:
+    - leaflet/leaflet-drupal
+    - core/drupalSettings
+    - core/once
+    - sailbuddy_map/leaflet-velocity
+
+leaflet-velocity:
+  remote: https://unpkg.com/leaflet-velocity@2.1.4
+  version: 2.1.4
+  license:
+    name: MIT
+    url: https://github.com/onaci/leaflet-velocity/blob/master/LICENSE
+    gpl-compatible: true
+  js:
+    js/vendor/leaflet-velocity.js: { minified: true }
+  dependencies:
+    - leaflet/leaflet
+

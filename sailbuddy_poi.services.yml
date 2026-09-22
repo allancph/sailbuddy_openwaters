@@ -1,4 +1,0 @@
-services:
-  plugin.manager.sailbuddy_poi.provider:
-    class: Drupal\sailbuddy_poi\PoiProviderPluginManager
-    parent: default_plugin_manager
