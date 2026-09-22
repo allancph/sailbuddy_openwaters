@@ -218,6 +218,20 @@
         this._group.clearLayers();
         return;
       }
+      // Harbour/detail maps are often zoomed far in, so the visible extent is
+      // a few hundred metres and almost no amenities are tagged that close to
+      // the marina. Fetch a wider area (min ~8 km diagonal) so POIs appear as
+      // soon as the visitor pans a little.
+      var minDiag = 8;
+      if (bboxDiagonalKm(b) < minDiag) {
+        var c = b.getCenter();
+        var halfLat = (minDiag / 2) / 111.32;
+        var halfLng = (minDiag / 2) / (111.32 * Math.cos(c.lat * Math.PI / 180));
+        b = L.latLngBounds(
+          [c.lat - halfLat, c.lng - halfLng],
+          [c.lat + halfLat, c.lng + halfLng]
+        );
+      }
 
       var q = '?north=' + b.getNorth().toFixed(3) +
         '&south=' + b.getSouth().toFixed(3) +

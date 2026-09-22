@@ -65,6 +65,22 @@ class OverpassProvider extends PluginBase implements PoiProviderInterface, Conta
   ];
 
   /**
+   * Backup Overpass mirrors tried in order if the configured endpoint fails.
+   *
+   * overpass-api.de is regularly throttled or unavailable; fallbacks keep the
+   * POI layer alive during outages. Mirrors must cover the whole planet —
+   * regional extract mirrors (e.g. overpass.osm.ch) silently return empty for
+   * areas outside their extract and would look like "no data".
+   *
+   * @var string[]
+   */
+  protected const FALLBACK_ENDPOINTS = [
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter',
+  ];
+
+  /**
    * Config factory.
    *
    * @var \Drupal\Core\Config\ConfigFactoryInterface
@@ -139,23 +155,54 @@ class OverpassProvider extends PluginBase implements PoiProviderInterface, Conta
 
     $ql = "[out:json][timeout:25];(\n" . implode("\n", $queries) . "\n);\nout center 400;";
 
-    $response = $this->httpClient->post($endpoint, [
-      'body' => 'data=' . urlencode($ql),
-      'headers' => [
-        'Content-Type' => 'application/x-www-form-urlencoded',
-        'Accept' => 'application/json',
-        'User-Agent' => 'SailbuddyPOI/1.0 (+https://dev.sailbuddy.com)',
-      ],
-      'timeout' => 30,
-    ]);
-    if ($response->getStatusCode() !== 200) {
-      throw new \RuntimeException('Overpass: HTTP ' . $response->getStatusCode());
-    }
-    $data = json_decode($response->getBody()->getContents(), TRUE);
-    if (!is_array($data)) {
-      throw new \RuntimeException('Overpass: invalid JSON response.');
-    }
+    $endpoints = array_values(array_unique(array_filter(array_merge(
+      [$endpoint],
+      self::FALLBACK_ENDPOINTS
+    ))));
 
+    $last_error = 'alle Overpass-endpoints var utilgængelige.';
+    foreach ($endpoints as $candidate) {
+      try {
+        $response = $this->httpClient->post($candidate, [
+          'body' => 'data=' . urlencode($ql),
+          'headers' => [
+            'Content-Type' => 'application/x-www-form-urlencoded',
+            'Accept' => 'application/json',
+            'User-Agent' => 'SailbuddyPOI/1.0 (+https://dev.sailbuddy.com)',
+          ],
+          'timeout' => 30,
+        ]);
+      }
+      catch (\Exception $e) {
+        $last_error = $candidate . ': ' . $e->getMessage();
+        continue;
+      }
+      if ($response->getStatusCode() !== 200) {
+        $last_error = $candidate . ': HTTP ' . $response->getStatusCode();
+        continue;
+      }
+      $data = json_decode($response->getBody()->getContents(), TRUE);
+      // A usable response carries an "elements" array; errors come back with
+      // a "remark" field instead and should not count as success.
+      if (!is_array($data) || !array_key_exists('elements', $data)) {
+        $last_error = $candidate . ': empty/invalid JSON response.';
+        continue;
+      }
+      return $this->buildRows($data);
+    }
+    throw new \RuntimeException('Overpass: ' . $last_error);
+  }
+
+  /**
+   * Converts an Overpass response to normalized POI rows.
+   *
+   * @param array $data
+   *   Decoded Overpass JSON with "elements".
+   *
+   * @return array
+   *   Normalized rows (see PoiProviderInterface::fetch()).
+   */
+  protected function buildRows(array $data) {
     $rows = [];
     foreach ((array) ($data['elements'] ?? []) as $element) {
       $tags_el = (array) ($element['tags'] ?? []);
