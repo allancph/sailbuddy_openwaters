@@ -1,0 +1,14 @@
+base_style_url: 'https://tiles.openwaters.io/seamap/style.json'
+default_tile_url: ''
+openwaters_tilejson_url: 'https://tiles.openwaters.io/seascape/tiles.json'
+cache_ttl: 60
+center_lat: 55.6761
+center_lng: 12.5683
+zoom: 8
+attribution: 'OpenWaters · OpenStreetMap contributors'
+marker_icon_url: '/sites/default/files/Ankerplads.png'
+enable_seascape: true
+enable_tides: true
+tides_units: m
+enable_ais: true
+ais_refresh: 30
