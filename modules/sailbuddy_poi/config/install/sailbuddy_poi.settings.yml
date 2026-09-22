@@ -6,3 +6,13 @@ endpoint_stage: 'https://marine.garmin.com/thirdparty-stage/api/v2/points-of-int
 endpoint_production: 'https://marine.garmin.com/thirdparty/api/v2/points-of-interest/bbox'
 webview_stage: 'https://activecaptain-stage.garmin.com/embed/webview'
 webview_production: 'https://activecaptain.garmin.com/embed/webview'
+providers_enabled:
+  - activecaptain
+  - overpass
+overpass_endpoint: 'https://overpass-api.de/api/interpreter'
+overpass_tags:
+  - 'amenity=fuel'
+  - 'amenity=drinking_water'
+  - 'shop=chandlery'
+  - 'craft=boatbuilder'
+  - 'amenity=charging_station'

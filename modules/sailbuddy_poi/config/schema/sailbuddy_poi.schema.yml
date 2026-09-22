@@ -26,3 +26,18 @@ sailbuddy_poi.settings:
     webview_production:
       type: string
       label: 'Production POI webview base URL'
+    providers_enabled:
+      type: sequence
+      label: 'Enabled POI providers'
+      sequence:
+        type: string
+        label: 'Provider plugin id'
+    overpass_endpoint:
+      type: string
+      label: 'Overpass API endpoint'
+    overpass_tags:
+      type: sequence
+      label: 'Overpass tag filters (key=value)'
+      sequence:
+        type: string
+        label: 'Tag filter'

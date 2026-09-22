@@ -11,21 +11,42 @@ use Drupal\Core\Url;
  * Implements hook_preprocess_leaflet_map().
  *
  * Attaches the POI overlay library and global settings to every Leaflet map
- * rendered on the site, so the ActiveCaptain layer shows up in the map menu.
+ * rendered on the site, so the enabled provider layers show up in the map menu.
  */
 function sailbuddy_poi_preprocess_leaflet_map(array &$variables) {
   $config = \Drupal::config('sailbuddy_poi.settings');
-  $provider = 'activecaptain';
+  $manager = \Drupal::service('plugin.manager.sailbuddy_poi.provider');
+  $enabled = array_values(array_filter((array) $config->get('providers_enabled')));
+  if (empty($enabled)) {
+    return;
+  }
+
+  // Menu labels: keep the ActiveCaptain layer readable short ("POI") and tag
+  // the OpenStreetMap overlay distinctly.
+  $labels = [
+    'activecaptain' => 'POI',
+    'overpass' => 'OSM POI',
+  ];
+
+  $providers = [];
+  foreach ($enabled as $provider) {
+    if (!$manager->hasDefinition($provider)) {
+      continue;
+    }
+    $settings = [
+      'label' => isset($labels[$provider]) ? $labels[$provider] : (string) $manager->getDefinition($provider)['label'],
+      'api' => Url::fromRoute('sailbuddy_poi.provider', ['provider' => $provider])->setAbsolute(TRUE)->toString(),
+      'webview' => Url::fromRoute('sailbuddy_poi.webview', ['provider' => $provider, 'poiId' => '__POI__'])->setAbsolute(TRUE)->toString(),
+    ];
+    $providers[$provider] = $settings;
+  }
+  if (empty($providers)) {
+    return;
+  }
 
   $variables['#attached']['library'][] = 'sailbuddy_poi/sailbuddy_poi.overlay';
   $variables['#attached']['drupalSettings']['sailbuddy_poi'] = [
     'zoom_min' => (int) $config->get('zoom_min') ?: 10,
-    'providers' => [
-      $provider => [
-        'label' => 'POI',
-        'api' => Url::fromRoute('sailbuddy_poi.provider', ['provider' => $provider])->setAbsolute(TRUE)->toString(),
-        'webview' => Url::fromRoute('sailbuddy_poi.webview', ['provider' => $provider, 'poiId' => '__POI__'])->setAbsolute(TRUE)->toString(),
-      ],
-    ],
+    'providers' => $providers,
   ];
 }

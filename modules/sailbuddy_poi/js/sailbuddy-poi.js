@@ -18,6 +18,8 @@
     boat_ramp: 'Bådrampe',
     business: 'Forretning',
     knowledge: 'Lokal viden',
+    drinking_water: 'Drikkevand',
+    charger: 'El-opladning',
     poi: 'POI'
   };
 
@@ -31,6 +33,8 @@
     lock: '#334155',
     bridge: '#92400e',
     business: '#ca8a04',
+    drinking_water: '#06b6d4',
+    charger: '#eab308',
     poi: '#475569'
   };
 
@@ -108,9 +112,7 @@
   function poiPopup(feature, layer, cfg, providerId) {
     var p = feature.properties || {};
     var html = '<div class="sailbuddy-poi-popup">';
-    if (p.name) {
-      html += '<h3>' + esc(p.name) + '</h3>';
-    }
+    html += '<h3>' + esc(p.name || typeLabel(p.type)) + '</h3>';
     html += '<div class="sailbuddy-poi-type">' + esc(typeLabel(p.type)) + '</div>';
     if (p.count && p.count > 1) {
       html += '<div class="sailbuddy-poi-count">' + esc(String(p.count)) + ' ' + esc(Drupal.t('POI i området')) + '</div>';
@@ -266,8 +268,8 @@
       if (!def || !def.api) return;
       var layer = new ActiveCaptainLayer(cfg, providerId);
       addToLayerControl(map, layer, def.label || providerId);
-      // Show POI icons by default; nothing renders until zoomed in close.
-      layer.addTo(map);
+      // POI layers start OFF — the visitor turns them on in the layer menu.
+      // Nothing renders until zoomed in close regardless.
     });
   }
 

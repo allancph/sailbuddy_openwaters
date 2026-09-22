@@ -7,6 +7,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\key\KeyRepositoryInterface;
+use Drupal\sailbuddy_poi\PoiProviderPluginManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -29,23 +30,32 @@ class SailbuddyPoiSettingsForm extends ConfigFormBase {
   protected $cacheTagsInvalidator;
 
   /**
+   * POI provider plugin manager.
+   *
+   * @var \Drupal\sailbuddy_poi\PoiProviderPluginManager
+   */
+  protected $providerManager;
+
+  /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('config.factory'),
       $container->get('key.repository'),
-      $container->get('cache_tags.invalidator')
+      $container->get('cache_tags.invalidator'),
+      $container->get('plugin.manager.sailbuddy_poi.provider')
     );
   }
 
   /**
    * {@inheritdoc}
    */
-  public function __construct(ConfigFactoryInterface $config_factory, KeyRepositoryInterface $key_repository, CacheTagsInvalidatorInterface $cache_tags_invalidator) {
+  public function __construct(ConfigFactoryInterface $config_factory, KeyRepositoryInterface $key_repository, CacheTagsInvalidatorInterface $cache_tags_invalidator, PoiProviderPluginManager $provider_manager) {
     parent::__construct($config_factory);
     $this->keyRepository = $key_repository;
     $this->cacheTagsInvalidator = $cache_tags_invalidator;
+    $this->providerManager = $provider_manager;
   }
 
   /**
@@ -105,6 +115,37 @@ class SailbuddyPoiSettingsForm extends ConfigFormBase {
       '#required' => TRUE,
     ];
 
+    $provider_options = [];
+    foreach ($this->providerManager->getDefinitions() as $id => $definition) {
+      $provider_options[$id] = (string) $definition['label'];
+    }
+    $form['providers_enabled'] = [
+      '#type' => 'checkboxes',
+      '#title' => $this->t('Aktive POI-providers'),
+      '#description' => $this->t('Hvilke provider-lag der vises i kortets lag-menu (alle starter slukket).'),
+      '#options' => $provider_options,
+      '#default_value' => array_values(array_filter((array) $config->get('providers_enabled'))) ?: array_keys($provider_options),
+    ];
+
+    $form['overpass'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Overpass (OpenStreetMap)'),
+      '#open' => FALSE,
+    ];
+    $form['overpass']['overpass_endpoint'] = [
+      '#type' => 'url',
+      '#title' => $this->t('Overpass API endpoint'),
+      '#description' => $this->t('Eksempel: https://overpass-api.de/api/interpreter'),
+      '#default_value' => $config->get('overpass_endpoint') ?: 'https://overpass-api.de/api/interpreter',
+      '#required' => TRUE,
+    ];
+    $form['overpass']['overpass_tags'] = [
+      '#type' => 'textarea',
+      '#title' => $this->t('Overpass tag-filtre'),
+      '#description' => $this->t('Én "key=value" pr. linje, f.eks. amenity=fuel eller shop=chandlery.'),
+      '#default_value' => implode("\n", (array) $config->get('overpass_tags')),
+    ];
+
     $form['cache_ttl'] = [
       '#type' => 'number',
       '#title' => $this->t('Cache lifetime (seconds)'),
@@ -122,13 +163,23 @@ class SailbuddyPoiSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
+    $enabled = array_values(array_filter($form_state->getValue('providers_enabled')));
+    $tags = array_values(array_filter(array_map('trim', explode("\n", (string) $form_state->getValue('overpass_tags')))));
+
     $this->config('sailbuddy_poi.settings')
       ->set('api_key_key', $form_state->getValue('api_key_key'))
       ->set('environment', $form_state->getValue('environment'))
       ->set('zoom_min', (int) $form_state->getValue('zoom_min'))
       ->set('cache_ttl', (int) $form_state->getValue('cache_ttl'))
+      ->set('providers_enabled', $enabled)
+      ->set('overpass_endpoint', $form_state->getValue('overpass_endpoint'))
+      ->set('overpass_tags', $tags)
       ->save();
-    $this->cacheTagsInvalidator->invalidateTags(['sailbuddy_poi:activecaptain']);
+
+    $tags_invalidate = ['sailbuddy_poi:activecaptain', 'sailbuddy_poi:overpass'];
+    foreach ($tags_invalidate as $tag) {
+      $this->cacheTagsInvalidator->invalidateTags([$tag]);
+    }
     parent::submitForm($form, $form_state);
   }
 
