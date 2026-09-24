@@ -236,6 +236,10 @@ class OverpassProvider extends PluginBase implements PoiProviderInterface, Conta
         'icon' => '',
         'webview' => '',
         'count' => 1,
+        // Contact details surface in the POI popup; missing tags are left NULL.
+        'phone' => ($tags_el['phone'] ?? NULL) ?: NULL,
+        'website' => ($tags_el['website'] ?? $tags_el['contact:website'] ?? NULL) ?: NULL,
+        'opening_hours' => ($tags_el['opening_hours'] ?? NULL) ?: NULL,
       ];
     }
 

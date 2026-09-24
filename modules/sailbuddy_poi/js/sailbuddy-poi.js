@@ -78,6 +78,11 @@
     });
   }
 
+  function escUrl(str) {
+    var s = String(str == null ? '' : str).trim();
+    return /^https?:\/\//i.test(s) ? esc(s) : '#';
+  }
+
   function throttle(fn, delay) {
     var pending = null;
     return function () {
@@ -146,6 +151,15 @@
     var html = '<div class="sailbuddy-poi-popup">';
     html += '<h3>' + esc(p.name || typeLabel(p.type)) + '</h3>';
     html += '<div class="sailbuddy-poi-type">' + esc(typeLabel(p.type)) + '</div>';
+    if (p.phone) {
+      html += '<div class="sailbuddy-poi-row"><a href="tel:' + esc(String(p.phone).replace(/[^\d+]/g, '')) + '">' + esc(p.phone) + '</a></div>';
+    }
+    if (p.website) {
+      html += '<div class="sailbuddy-poi-row"><a href="' + escUrl(p.website) + '" target="_blank" rel="noopener">' + esc(String(p.website).replace(/^https?:\/\//, '')) + '</a></div>';
+    }
+    if (p.opening_hours) {
+      html += '<div class="sailbuddy-poi-row sailbuddy-poi-hours">' + esc(p.opening_hours) + '</div>';
+    }
     if (p.count && p.count > 1) {
       html += '<div class="sailbuddy-poi-count">' + esc(String(p.count)) + ' ' + esc(Drupal.t('POI i området')) + '</div>';
     }

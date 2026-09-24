@@ -248,6 +248,10 @@ class PoiController extends ControllerBase {
           'icon' => $row['icon'],
           'webview' => $row['webview'],
           'count' => $row['count'],
+          // Optional contact details; only included when the provider sets them.
+          'phone' => $row['phone'] ?? NULL,
+          'website' => $row['website'] ?? NULL,
+          'opening_hours' => $row['opening_hours'] ?? NULL,
         ],
       ];
     }

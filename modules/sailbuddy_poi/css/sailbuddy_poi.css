@@ -40,3 +40,23 @@
   font-size: 11px;
   font-style: italic;
 }
+
+.sailbuddy-poi-popup .sailbuddy-poi-row {
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+
+.sailbuddy-poi-popup .sailbuddy-poi-row a {
+  color: #0d6efd;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.sailbuddy-poi-popup .sailbuddy-poi-row a:hover {
+  text-decoration: underline;
+}
+
+.sailbuddy-poi-popup .sailbuddy-poi-hours {
+  color: #555;
+  font-style: italic;
+}
