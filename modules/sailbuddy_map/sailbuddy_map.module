@@ -59,14 +59,14 @@ function sailbuddy_map_leaflet_map_info() {
       'zoom' => 8,
     ],
     'layers' => [
-      'OpenWaters Seamap' => [
+      'Søkort' => [
         'type' => 'vector',
         'urlTemplate' => Url::fromRoute('sailbuddy_map.style', ['chart' => 'seamap'])->toString(),
         'options' => [
           'attribution' => '© <a href="https://openwaters.io">OpenWaters</a> Seamap · © OpenStreetMap contributors',
         ],
       ],
-      'Satellit (Esri World Imagery)' => [
+      'Satellit' => [
         'type' => 'raster',
         'urlTemplate' => 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         'options' => [
