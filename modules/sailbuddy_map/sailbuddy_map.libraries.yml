@@ -9,6 +9,9 @@ sailbuddy_map.init:
     - leaflet/maplibre-gl-js
 
 sailbuddy_map.overlays:
+  css:
+    theme:
+      css/sailbuddy_map.css: {}
   js:
     js/sailbuddy-map-overlays.js: {}
   dependencies:

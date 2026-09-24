@@ -608,6 +608,77 @@
       overlays[Drupal.t('Wind')] = windLayer;
     }
 
+    // --- Mapillary photo overlay (street-level images near the harbour) ---
+    var mlyLayer = null;
+    var mlyTimers = [];
+    var MLY_MAX_DIAGONAL_KM = 30;
+
+    function mlyPopUp(feature) {
+      var p = feature.properties || {};
+      var date = p.date ? '<span class="sailbuddy-mly-date">' + p.date + '</span>' : '';
+      var open = '<a class="sailbuddy-mly-open" href="https://www.mapillary.com/app/?pKey=' + p.id + '&focus=photo" target="_blank" rel="noopener">Mapillary ↗</a>';
+      var img = p.thumb ? '<img src="' + p.thumb + '" alt="Mapillary foto" loading="lazy">' : '<div class="sailbuddy-mly-thumb">' + Drupal.t('Billede ikke tilgængeligt') + '</div>';
+      return '<div class="sailbuddy-mly-popup" data-mlyid="' + p.id + '">' +
+        '<div class="sailbuddy-mly-thumb">' + img + '</div>' +
+        '<div class="sailbuddy-mly-meta">' + date + (date ? ' · ' : '') + open + '</div>' +
+        '</div>';
+    }
+
+    function mlyOnEach(feature, layer) {
+      if ((feature.properties && feature.properties.kind) !== 'photo') {
+        return;
+      }
+      layer.bindPopup(mlyPopUp(feature));
+    }
+
+    function mlyStyle(feature) {
+      if (feature.properties && feature.properties.kind === 'track') {
+        return { color: '#d97706', weight: 2, opacity: 0.55, dashArray: '5 5', interactive: false };
+      }
+      return {};
+    }
+
+    function mlyPointToLayer(feature, latlng) {
+      var pano = feature.properties && feature.properties.is_pano;
+      return L.circleMarker(latlng, {
+        radius: pano ? 6 : 4,
+        fillColor: pano ? '#7c3aed' : '#f59e0b',
+        color: '#ffffff',
+        weight: 1.2,
+        fillOpacity: 0.9
+      });
+    }
+
+    if (cfg.mapillary && cfg.mapillary.enable !== false) {
+      mlyLayer = L.geoJSON(null, {
+        pointToLayer: mlyPointToLayer,
+        style: mlyStyle,
+        onEachFeature: mlyOnEach
+      });
+      overlays[Drupal.t('Mapillary fotos')] = mlyLayer;
+
+      var loadMly = function () {
+        if (!mlyLayer || !map.hasLayer(mlyLayer)) return;
+        var b = map.getBounds().pad(0.1);
+        if (bboxDiagonalKm(b) > MLY_MAX_DIAGONAL_KM) {
+          mlyLayer.clearLayers();
+          return;
+        }
+        var bbox = round(b.getWest(), 5) + ',' + round(b.getSouth(), 5) + ',' + round(b.getEast(), 5) + ',' + round(b.getNorth(), 5);
+        fetch(cfg.mapillary.photos + '?bbox=' + bbox, { cache: 'no-cache' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+            mlyLayer.clearLayers();
+            if (data && data.features && data.features.length) {
+              mlyLayer.addData(data.features);
+            }
+          })
+          .catch(function () {});
+      };
+
+      map.on('moveend', throttle(loadMly, 1200));
+    }
+
     // --- Build the layer menu (collapsed) and default state ---
     var layerControl = null;
     if (Object.keys(overlays).length) {
@@ -629,6 +700,7 @@
     map.on('overlayadd overlayremove', function () {
       if (map.hasLayer(aisLayer)) loadAis();
       if (map.hasLayer(tidesLayer)) loadTides();
+      if (map.hasLayer(mlyLayer)) loadMly();
     });
 
     if (cfg.enable_fit) {

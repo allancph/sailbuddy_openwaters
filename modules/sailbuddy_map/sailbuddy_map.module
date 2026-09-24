@@ -99,5 +99,9 @@ function sailbuddy_map_preprocess_leaflet_map(array &$variables) {
     'wind_particles'  => TRUE,
     'wind_particles_url' => \Drupal\Core\Url::fromRoute("openmeteo_weather.wind_grid", [], ['language' => \Drupal::languageManager()->getLanguage('en')])->setAbsolute(TRUE)->toString(),
     'wind_particles_url_eu' => \Drupal\Core\Url::fromRoute("openmeteo_weather.wind_grid_eu", [], ['language' => \Drupal::languageManager()->getLanguage('en')])->setAbsolute(TRUE)->toString(),
+    'mapillary' => [
+      'enable' => (bool) ($config->get('enable_mapillary') ?? TRUE),
+      'photos' => \Drupal\Core\Url::fromRoute("sailbuddy_map.mapillary_photos", [], ['language' => \Drupal::languageManager()->getLanguage('en')])->setAbsolute(TRUE)->toString(),
+    ],
   ];
 }
