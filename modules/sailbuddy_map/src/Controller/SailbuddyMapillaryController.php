@@ -12,13 +12,17 @@ use Symfony\Component\HttpFoundation\Request;
 /**
  * Proxies Mapillary API v4 data for the harbour photo overlay, keeping the
  * access token server-side (never exposed in page HTML).
+ *
+ * The Mapillary /images endpoint rejects bbox queries that cover "too much
+ * data" (HTTP 500) regardless of the limit parameter. Dense harbours fail,
+ * sparse ones succeed. To keep the layer working everywhere we split an
+ * oversized bbox into quadrants and recurse until each sub-query is accepted.
  */
 final class SailbuddyMapillaryController extends ControllerBase {
 
-  /**
-   * Mapillary Graph API v4 base URL.
-   */
   private const MAPILLARY_API = 'https://graph.mapillary.com';
+
+  private const MAX_SPLIT_DEPTH = 4;
 
   /**
    * Constructs a SailbuddyMapillaryController.
@@ -56,7 +60,7 @@ final class SailbuddyMapillaryController extends ControllerBase {
    * Response is a GeoJSON FeatureCollection:
    *  - Point features: photo positions (properties: id, sequence,
    *    captured_at, is_pano, date, thumb).
-   *  - MultiPoint features: joined track points grouped by sequence.
+   *  - LineString features: joined track points grouped by sequence.
    *
    * Photos without a live thumbnail (deleted/private content) are skipped so
    * the popup never points at dead URLs.
@@ -84,11 +88,41 @@ final class SailbuddyMapillaryController extends ControllerBase {
       }
     }
 
-    $token = (string) $this->configFactory->get('mapillary.settings')->get('access_token');
+    $token = (string) $this->configFactory->get('sailbuddy_map.settings')->get('mapillary_access_token');
     if ($token === '') {
       return new JsonResponse(['type' => 'FeatureCollection', 'features' => [], 'error' => 'no token'], 500);
     }
 
+    // Fetch images, splitting oversized bboxes into quadrants that the
+    // Mapillary API will accept (dense harbours otherwise return HTTP 500).
+    $images = [];
+    $this->fetchQuadrant($token, $left, $bottom, $right, $top, $images, 0);
+
+    $payload = $this->buildFeatureCollection($images);
+    $this->cache->set($cid, $payload, time() + 600);
+    return new JsonResponse($payload, 200, ['X-Sailbuddy-Cache' => 'MISS']);
+  }
+
+  /**
+   * Fetches images for a bbox, recursing into quadrants when the API refuses.
+   *
+   * @param string $token
+   *   Mapillary access token.
+   * @param float $left
+   *   Western longitude.
+   * @param float $bottom
+   *   Southern latitude.
+   * @param float $right
+   *   Eastern longitude.
+   * @param float $top
+   *   Northern latitude.
+   * @param array<int, array<string, mixed>> $images
+   *   Accumulator filled with raw image rows.
+   * @param int $depth
+   *   Current recursion depth.
+   */
+  private function fetchQuadrant(string $token, float $left, float $bottom, float $right, float $top, array &$images, int $depth): void {
+    $bbox = sprintf('%.6f,%.6f,%.6f,%.6f', $left, $bottom, $right, $top);
     $url = self::MAPILLARY_API . '/images?' . http_build_query([
       'bbox' => $bbox,
       'fields' => 'id,geometry,sequence,captured_at,is_pano,thumb_1024_url',
@@ -96,28 +130,61 @@ final class SailbuddyMapillaryController extends ControllerBase {
       'access_token' => $token,
     ]);
 
-    $raw = NULL;
     try {
       $response = $this->httpClient->get($url, [
         'timeout' => 20,
         'headers' => ['Accept' => 'application/json'],
       ]);
       $raw = Json::decode((string) $response->getBody());
+      foreach (($raw['data'] ?? []) as $image) {
+        if (is_array($image) && !empty($image['id'])) {
+          $images[] = $image;
+        }
+      }
+      return;
     }
     catch (\Throwable $e) {
-      watchdog_exception('sailbuddy_map', $e);
-      return new JsonResponse(['type' => 'FeatureCollection', 'features' => [], 'error' => 'mapillary request failed'], 502);
+      // Only recurse when the API refuses because of data volume. Other
+      // failures (auth, network, rate limit) bubble up as-is.
+      $body = '';
+      if ($e instanceof \GuzzleHttp\Exception\BadResponseException) {
+        $body = (string) $e->getResponse()->getBody();
+      }
+      if ($depth >= self::MAX_SPLIT_DEPTH || stripos($body, 'reduce the amount of data') === FALSE) {
+        \Drupal::logger('sailbuddy_map')->error('Mapillary photos request failed: @msg', ['@msg' => $e->getMessage()]);
+        return;
+      }
     }
 
-    $images = $raw['data'] ?? [];
-    if (!is_array($images) || !$images) {
-      return new JsonResponse(['type' => 'FeatureCollection', 'features' => []], 200);
-    }
+    // Split into four quadrants and retry each.
+    $midLon = ($left + $right) / 2;
+    $midLat = ($bottom + $top) / 2;
+    $this->fetchQuadrant($token, $left, $midLat, $midLon, $top, $images, $depth + 1);
+    $this->fetchQuadrant($token, $midLon, $midLat, $right, $top, $images, $depth + 1);
+    $this->fetchQuadrant($token, $left, $bottom, $midLon, $midLat, $images, $depth + 1);
+    $this->fetchQuadrant($token, $midLon, $bottom, $right, $midLat, $images, $depth + 1);
+  }
 
-    // Group by sequence, preserving captured_at order so tracks are drawn
-    // in chronological order.
-    $bySequence = [];
+  /**
+   * Builds the GeoJSON FeatureCollection from raw Mapillary image rows.
+   *
+   * @param array<int, array<string, mixed>> $images
+   *   Raw image rows (possibly duplicated across quadrant splits).
+   *
+   * @return array<string, mixed>
+   *   The payload to cache/return.
+   */
+  private function buildFeatureCollection(array $images): array {
+    $byId = [];
     foreach ($images as $image) {
+      $id = (string) ($image['id'] ?? '');
+      if ($id !== '' && !isset($byId[$id])) {
+        $byId[$id] = $image;
+      }
+    }
+
+    $bySequence = [];
+    foreach ($byId as $image) {
       $seq = (string) ($image['sequence'] ?? 'n/a');
       $bySequence[$seq][] = $image;
     }
@@ -179,9 +246,7 @@ final class SailbuddyMapillaryController extends ControllerBase {
       }
     }
 
-    $payload = ['type' => 'FeatureCollection', 'features' => $features];
-    $this->cache->set($cid, $payload, time() + 600);
-    return new JsonResponse($payload, 200, ['X-Sailbuddy-Cache' => 'MISS']);
+    return ['type' => 'FeatureCollection', 'features' => $features];
   }
 
 }

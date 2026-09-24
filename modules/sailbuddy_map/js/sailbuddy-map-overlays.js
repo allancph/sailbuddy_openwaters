@@ -649,7 +649,7 @@
       });
     }
 
-    if (cfg.mapillary && cfg.mapillary.enable !== false) {
+    if (cfg.mapillary && cfg.mapillary.enable !== false && /node-harbour-/.test(mapid)) {
       mlyLayer = L.geoJSON(null, {
         pointToLayer: mlyPointToLayer,
         style: mlyStyle,

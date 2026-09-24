@@ -39,6 +39,13 @@ class SailbuddyMapSettingsForm extends ConfigFormBase {
       '#min' => 0,
     ];
 
+    $form['mapillary_access_token'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Mapillary access token'),
+      '#description' => $this->t('Server-side token for the harbour photo overlay. Never exposed in page HTML.'),
+      '#default_value' => $config->get('mapillary_access_token'),
+    ];
+
     $form['default_center'] = [
       '#type' => 'container',
       '#attributes' => ['class' => ['container-inline']],
@@ -88,6 +95,7 @@ class SailbuddyMapSettingsForm extends ConfigFormBase {
       ->set('center_lng', $form_state->getValue(['default_center', 'center_lng']))
       ->set('zoom', $form_state->getValue('default_zoom'))
       ->set('attribution', $form_state->getValue('attribution'))
+      ->set('mapillary_access_token', $form_state->getValue('mapillary_access_token'))
       ->save();
 
     parent::submitForm($form, $form_state);

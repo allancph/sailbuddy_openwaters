@@ -14,6 +14,9 @@ sailbuddy_map.settings:
     cache_ttl:
       type: integer
       label: 'Cache TTL'
+    mapillary_access_token:
+      type: string
+      label: 'Mapillary access token'
     center_lat:
       type: float
       label: 'Default center latitude'
