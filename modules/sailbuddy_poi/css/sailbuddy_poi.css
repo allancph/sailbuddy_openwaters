@@ -60,3 +60,47 @@
   color: #555;
   font-style: italic;
 }
+
+/* "I nærheden" live-OSM faciliter — komplementært lager til manuel kuratering */
+.sailbuddy-facilities-nearby {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #c6c6c6;
+}
+
+.sailbuddy-facilities-nearby__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.sailbuddy-facilities-nearby__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sailbuddy-facility-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #e8f6ee;
+  border: 1px solid #b7dfc4;
+  color: #1c6b3a;
+  font-size: 12px;
+}
+
+.sailbuddy-facility-chip.is-curated {
+  background: #fff3cd;
+  border-color: #e0c45a;
+  color: #6b531c;
+}
+
+a.sailbuddy-facility-confirmed::after {
+  content: " \u2713";
+  color: #1c8a4a;
+  font-weight: 700;
+}
+}

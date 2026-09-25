@@ -103,6 +103,92 @@
     return Math.sqrt(kmLat * kmLat + kmLng * kmLng);
   }
 
+  // Maps a normalized POI type to the legacy "Faciliteter" taxonomy term names
+  // it corresponds to. Used to cross-reference live OSM amenities against the
+  // harbour's hand-curated facility tags (SEO-valuable, kept untouched).
+  var FACILITY_TERMS_BY_TYPE = {
+    fuel: ['Benzin', 'Diesel'],
+    toilets: ['Toilet'],
+    drinking_water: ['Vand'],
+    recycling: ['Miljøstation'],
+    food: ['Restaurant'],
+    shop: ['Supermarked'],
+    chandlery: ['Sejlerforretning', 'Udstyr butik'],
+    laundry: ['Vaskeri'],
+    rental: ['Cykel udlejning'],
+    accommodation: ['Overnatning'],
+    tourist: ['Turistattraktion'],
+    viewpoint: ['Udsigtspunkt'],
+    marina: ['Havn', 'Marina']
+  };
+
+  // Human label + term-name lookup per type for the "I nærheden" summary.
+  function nearbyFacilityLabel(type) {
+    var terms = FACILITY_TERMS_BY_TYPE[type];
+    return terms && terms.length ? terms[0] : typeLabel(type);
+  }
+
+  // Aggregates live POI features by type and renders a "I nærheden" (auto,
+  // OSM-backed) summary next to the harbour's curated facility tags. Living
+  // proof-of-concept: keeps the legacy taxonomy chips intact, only adds a
+  // complementary live-data layer.
+  function renderNearbyFacilities(typeCounts, map) {
+    var host = document.querySelector('.field--name-field-faciliteter');
+    if (!host) {
+      return;
+    }
+    var wrap = host.querySelector('.sailbuddy-facilities-nearby');
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.className = 'sailbuddy-facilities-nearby';
+      wrap.innerHTML =
+        '<div class="sailbuddy-facilities-nearby__label">I nærheden (live OSM)</div>' +
+        '<div class="sailbuddy-facilities-nearby__items"></div>';
+      host.appendChild(wrap);
+    }
+    var items = wrap.querySelector('.sailbuddy-facilities-nearby__items');
+    items.innerHTML = '';
+
+    var keys = Object.keys(typeCounts).filter(function (t) {
+      return FACILITY_TERMS_BY_TYPE[t];
+    });
+    if (!keys.length) {
+      wrap.style.display = 'none';
+      return;
+    }
+    wrap.style.display = 'block';
+
+    var manualTerms = {};
+    host.querySelectorAll('.field__item a').forEach(function (a) {
+      var txt = (a.textContent || '').trim();
+      manualTerms[txt] = true;
+    });
+
+    keys.forEach(function (type) {
+      var chip = document.createElement('span');
+      chip.className = 'sailbuddy-facility-chip';
+      var terms = FACILITY_TERMS_BY_TYPE[type];
+      var curated = terms.some(function (term) {
+        return manualTerms[term];
+      });
+      if (curated) {
+        chip.classList.add('is-curated');
+      }
+      chip.textContent = nearbyFacilityLabel(type) + ' \u00b7 ' + typeCounts[type];
+      chip.title = curated ? 'Bekr\u00e6ftet af manuelle faciliteter' : 'Findes i n\u00e6rheden (ikke angivet manuelt)';
+      items.appendChild(chip);
+
+      // Curated chips that a matching live POI confirms get a small badge.
+      host.querySelectorAll('.field__item a').forEach(function (a) {
+        var txt = (a.textContent || '').trim();
+        if (terms.indexOf(txt) !== -1 && !a.getAttribute('data-poi-confirmed')) {
+          a.setAttribute('data-poi-confirmed', '1');
+          a.classList.add('sailbuddy-facility-confirmed');
+        }
+      });
+    });
+  }
+
   function typeLabel(type) {
     return TYPE_LABELS[type] || TYPE_LABELS.poi;
   }
@@ -270,6 +356,16 @@
           this._group.clearLayers();
           if (data && data.features && data.features.length) {
             this._group.addData(data.features);
+            if (this.providerId === 'overpass') {
+              var typeCounts = {};
+              data.features.forEach(function (feat) {
+                var t = feat.properties && feat.properties.type;
+                if (t) {
+                  typeCounts[t] = (typeCounts[t] || 0) + 1;
+                }
+              });
+              renderNearbyFacilities(typeCounts, map);
+            }
           }
         }.bind(this))
         .catch(function () {});
