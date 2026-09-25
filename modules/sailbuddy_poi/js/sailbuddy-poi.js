@@ -128,65 +128,112 @@
     return terms && terms.length ? terms[0] : typeLabel(type);
   }
 
-  // Aggregates live POI features by type and renders a "I nærheden" (auto,
-  // OSM-backed) summary next to the harbour's curated facility tags. Living
-  // proof-of-concept: keeps the legacy taxonomy chips intact, only adds a
-  // complementary live-data layer.
-  function renderNearbyFacilities(typeCounts, map) {
+  // Merges the harbour's hand-curated "Faciliteter" tags (crawlable taxonomy
+  // <a> links, kept intact for SEO) with live OSM POI data into ONE
+  // self-updating list. Curated entries get a live count badge when POIs are
+  // confirmed nearby; auto-only facility types are appended as chips that zoom
+  // the map to their POIs. Re-runs on every map move (self-updating).
+  var NEARBY_ID = 'sailbuddy-facility-live';
+
+  function renderNearbyFacilities(typeCounts, featuresByType, map, poiGroup) {
     var host = document.querySelector('.field--name-field-faciliteter');
     if (!host) {
       return;
     }
-    var wrap = host.querySelector('.sailbuddy-facilities-nearby');
-    if (!wrap) {
-      wrap = document.createElement('div');
-      wrap.className = 'sailbuddy-facilities-nearby';
-      wrap.innerHTML =
-        '<div class="sailbuddy-facilities-nearby__label">I nærheden (live OSM)</div>' +
-        '<div class="sailbuddy-facilities-nearby__items"></div>';
-      host.appendChild(wrap);
+    var container = host.querySelector('.field__items');
+    if (!container) {
+      return;
     }
-    var items = wrap.querySelector('.sailbuddy-facilities-nearby__items');
-    items.innerHTML = '';
+
+    // Reset the previous live-render (badges + auto chips) — curated anchors stay.
+    container.querySelectorAll('.' + NEARBY_ID + ', a.sailbuddy-facility-confirmed')
+      .forEach(function (el) {
+        if (el.getAttribute('data-poi-confirmed')) {
+          el.removeAttribute('data-poi-confirmed');
+          el.classList.remove('sailbuddy-facility-confirmed');
+        }
+        el.remove();
+      });
 
     var keys = Object.keys(typeCounts).filter(function (t) {
       return FACILITY_TERMS_BY_TYPE[t];
     });
     if (!keys.length) {
-      wrap.style.display = 'none';
       return;
     }
-    wrap.style.display = 'block';
-
-    var manualTerms = {};
-    host.querySelectorAll('.field__item a').forEach(function (a) {
-      var txt = (a.textContent || '').trim();
-      manualTerms[txt] = true;
-    });
+    // Auto-only facilities (present in nearby OSM, absent from manual tags)
+    // are appended into the same list so it reads as one merged set.
+    var extras = document.createElement('span');
+    extras.className = NEARBY_ID + ' sailbuddy-facility-extras';
+    container.appendChild(extras);
 
     keys.forEach(function (type) {
-      var chip = document.createElement('span');
-      chip.className = 'sailbuddy-facility-chip';
       var terms = FACILITY_TERMS_BY_TYPE[type];
-      var curated = terms.some(function (term) {
-        return manualTerms[term];
-      });
-      if (curated) {
-        chip.classList.add('is-curated');
-      }
-      chip.textContent = nearbyFacilityLabel(type) + ' \u00b7 ' + typeCounts[type];
-      chip.title = curated ? 'Bekr\u00e6ftet af manuelle faciliteter' : 'Findes i n\u00e6rheden (ikke angivet manuelt)';
-      items.appendChild(chip);
-
-      // Curated chips that a matching live POI confirms get a small badge.
-      host.querySelectorAll('.field__item a').forEach(function (a) {
+      var count = typeCounts[type];
+      var matchedAnchor = null;
+      var manualTerms = {};
+      container.querySelectorAll('a').forEach(function (a) {
         var txt = (a.textContent || '').trim();
-        if (terms.indexOf(txt) !== -1 && !a.getAttribute('data-poi-confirmed')) {
-          a.setAttribute('data-poi-confirmed', '1');
-          a.classList.add('sailbuddy-facility-confirmed');
-        }
+        if (manualTerms[txt]) return;
+        manualTerms[txt] = a;
       });
+      terms.forEach(function (term) {
+        var a = manualTerms[term];
+        if (a && !matchedAnchor) matchedAnchor = a;
+      });
+
+      if (matchedAnchor) {
+        // Curated entry confirmed by live data: add a live count badge.
+        if (!matchedAnchor.getAttribute('data-poi-confirmed')) {
+          matchedAnchor.setAttribute('data-poi-confirmed', '1');
+          matchedAnchor.classList.add('sailbuddy-facility-confirmed');
+        }
+        var badge = document.createElement('span');
+        badge.className = NEARBY_ID + ' sailbuddy-facility-badge';
+        badge.textContent = count;
+        badge.title = typeLabel(type) + ' i n\u00e6rheden (live OSM)';
+        matchedAnchor.appendChild(badge);
+      }
+      else {
+        // Auto-only facility: a chip that zooms the map to its POIs.
+        var chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = NEARBY_ID + ' sailbuddy-facility-chip-auto';
+        chip.innerHTML = nearbyFacilityLabel(type) + ' <b>' + count + '</b>';
+        chip.title = 'Findes i n\u00e6rheden (live OSM) \u2014 klik for at zoome til p\u00e5 kortet';
+        chip.addEventListener('click', function () {
+          zoomMapToType(map, poiGroup, featuresByType[type]);
+        });
+        extras.appendChild(chip);
+      }
     });
+  }
+
+  // Centers/fits the map to the POIs of a clicked facility and ensures the POI
+  // layer is visible.
+  function zoomMapToType(map, poiGroup, features) {
+    if (!map || !features || !features.length) {
+      return;
+    }
+    if (poiGroup && !map.hasLayer(poiGroup)) {
+      map.addLayer(poiGroup);
+    }
+    var bounds = L.latLngBounds([]);
+    features.forEach(function (f) {
+      var g = f.geometry;
+      if (!g) return;
+      if (g.type === 'Point') {
+        bounds.extend(L.latLng(g.coordinates[1], g.coordinates[0]));
+      }
+      else if (g.type === 'MultiPoint') {
+        g.coordinates.forEach(function (c) {
+          bounds.extend(L.latLng(c[1], c[0]));
+        });
+      }
+    });
+    if (bounds.isValid()) {
+      map.flyToBounds(bounds, { maxZoom: 16, padding: [40, 40] });
+    }
   }
 
   function typeLabel(type) {
@@ -358,13 +405,15 @@
             this._group.addData(data.features);
             if (this.providerId === 'overpass') {
               var typeCounts = {};
+              var featuresByType = {};
               data.features.forEach(function (feat) {
                 var t = feat.properties && feat.properties.type;
                 if (t) {
                   typeCounts[t] = (typeCounts[t] || 0) + 1;
+                  (featuresByType[t] = featuresByType[t] || []).push(feat);
                 }
               });
-              renderNearbyFacilities(typeCounts, map);
+              renderNearbyFacilities(typeCounts, featuresByType, map, this._group);
             }
           }
         }.bind(this))

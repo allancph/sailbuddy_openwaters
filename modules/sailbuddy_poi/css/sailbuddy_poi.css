@@ -61,46 +61,51 @@
   font-style: italic;
 }
 
-/* "I nærheden" live-OSM faciliter — komplementært lager til manuel kuratering */
-.sailbuddy-facilities-nearby {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px dashed #c6c6c6;
-}
-
-.sailbuddy-facilities-nearby__label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #666;
-  margin-bottom: 6px;
-}
-
-.sailbuddy-facilities-nearby__items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.sailbuddy-facility-chip {
+/* Faciliteter — smeltet kurateret + live OSM (selvopdaterende) */
+.sailbuddy-facility-badge {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 10px;
+  min-width: 18px;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 9px;
   background: #e8f6ee;
   border: 1px solid #b7dfc4;
   color: #1c6b3a;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  cursor: default;
 }
 
-.sailbuddy-facility-chip.is-curated {
+a.sailbuddy-facility-confirmed .sailbuddy-facility-badge {
+  background: #d5eeff;
+  border-color: #a8d4f2;
+  color: #0b5c9e;
+}
+
+.sailbuddy-facility-extras {
+  display: inline;
+}
+
+.sailbuddy-facility-chip-auto {
+  display: inline-block;
+  margin: 3px 2px;
+  padding: 3px 9px;
+  border-radius: 10px;
   background: #fff3cd;
-  border-color: #e0c45a;
+  border: 1px solid #e0c45a;
   color: #6b531c;
+  font-size: 12px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-a.sailbuddy-facility-confirmed::after {
-  content: " \u2713";
-  color: #1c8a4a;
+.sailbuddy-facility-chip-auto b {
   font-weight: 700;
 }
+
+.sailbuddy-facility-chip-auto:hover {
+  background: #ffe9a3;
+  border-color: #c9a621;
 }
