@@ -149,11 +149,21 @@ class SailbuddyPoiSettingsForm extends ConfigFormBase {
     $form['cache_ttl'] = [
       '#type' => 'number',
       '#title' => $this->t('Cache lifetime (seconds)'),
-      '#description' => $this->t('How long a bbox response is cached before the Garmin API is called again.'),
+      '#description' => $this->t('How long a bbox response is cached before the upstream provider is called again. Stale data is served while an outage is detected.'),
       '#min' => 30,
-      '#max' => 86400,
-      '#default_value' => (int) $config->get('cache_ttl') ?: 900,
+      '#max' => 31536000,
+      '#default_value' => (int) $config->get('cache_ttl') ?: 604800,
       '#required' => TRUE,
+    ];
+
+    $form['overpass_budget'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Overpass meget-tid-budget (seconds)'),
+      '#description' => $this->t('Total time budget in seconds for trying all Overpass endpoints before the request fails over to stale cache.'),
+      '#min' => 5,
+      '#max' => 120,
+      '#step' => 1,
+      '#default_value' => (float) ($config->get('overpass_budget') ?: 30.0),
     ];
 
     return parent::buildForm($form, $form_state);
@@ -171,6 +181,7 @@ class SailbuddyPoiSettingsForm extends ConfigFormBase {
       ->set('environment', $form_state->getValue('environment'))
       ->set('zoom_min', (int) $form_state->getValue('zoom_min'))
       ->set('cache_ttl', (int) $form_state->getValue('cache_ttl'))
+      ->set('overpass_budget', (float) $form_state->getValue('overpass_budget') ?: 30.0)
       ->set('providers_enabled', $enabled)
       ->set('overpass_endpoint', $form_state->getValue('overpass_endpoint'))
       ->set('overpass_tags', $tags)

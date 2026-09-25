@@ -14,6 +14,9 @@ sailbuddy_poi.settings:
     cache_ttl:
       type: integer
       label: 'Cache lifetime in seconds for bbox responses'
+    overpass_budget:
+      type: float
+      label: 'Total time budget in seconds for trying all Overpass endpoints'
     endpoint_stage:
       type: string
       label: 'Staging bbox API endpoint'

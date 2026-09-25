@@ -161,7 +161,18 @@ class OverpassProvider extends PluginBase implements PoiProviderInterface, Conta
     ))));
 
     $last_error = 'alle Overpass-endpoints var utilgængelige.';
+    // Budget the entire fan-out so a dead/rate-limited Overpass fails fast
+    // (serve-stale kicks in) instead of hanging ~(endpoints * timeout) seconds.
+    // Single responses may still take up to 25s each, so the per-request
+    // timeout stays generous; the loop-level budget is what cuts the tail.
+    $budget = (float) $settings->get('overpass_budget') ?: 30.0;
+    $deadline = microtime(TRUE) + $budget;
     foreach ($endpoints as $candidate) {
+      if (microtime(TRUE) >= $deadline) {
+        $last_error .= ' (tidsbudget på ' . $budget . 's brugt op)';
+        break;
+      }
+      $per_request = max(1, (int) min(30, $deadline - microtime(TRUE)));
       try {
         $response = $this->httpClient->post($candidate, [
           'body' => 'data=' . urlencode($ql),
@@ -170,7 +181,7 @@ class OverpassProvider extends PluginBase implements PoiProviderInterface, Conta
             'Accept' => 'application/json',
             'User-Agent' => 'SailbuddyPOI/1.0 (+https://dev.sailbuddy.com)',
           ],
-          'timeout' => 30,
+          'timeout' => $per_request,
         ]);
       }
       catch (\Exception $e) {

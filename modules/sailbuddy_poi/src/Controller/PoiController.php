@@ -93,9 +93,14 @@ class PoiController extends ControllerBase {
     }
 
     // Cache per provider + coarse bbox bucket so adjacent views reuse data.
+    // Overpass responses are zoom-independent (all POIs inside the bbox are
+    // returned), so zoom is dropped from its bucket key to maximise reuse and
+    // minimise calls to the public Overpass instance. ActiveCaptain clusters
+    // by zoom, so its key keeps the zoom suffix.
     $bucket = 'sbpoi:' . $provider . ':'
       . round($bbox['north'], 2) . ',' . round($bbox['south'], 2) . ','
-      . round($bbox['west'], 2) . ',' . round($bbox['east'], 2) . ':z' . $zoom;
+      . round($bbox['west'], 2) . ',' . round($bbox['east'], 2)
+      . ($provider === 'activecaptain' ? ':z' . $zoom : '');
 
     $cacheable = new CacheableMetadata();
     $cacheable->setCacheTags(['sailbuddy_poi:' . $provider]);
@@ -111,26 +116,34 @@ class PoiController extends ControllerBase {
         $rows = $plugin->fetch($bbox, $zoom);
       }
       catch (\Exception $e) {
-        $this->getLogger('sailbuddy_poi')->error('Provider @provider failed: @err', [
+        $this->getLogger('sailbuddy_poi')->warning('Provider @provider failed: @err (serving stale if any)', [
           '@provider' => $provider,
           '@err' => $e->getMessage(),
         ]);
-        return new JsonResponse(['error' => 'POI provider unavailable.'], Response::HTTP_BAD_GATEWAY);
+        // Serve stale data if a previous fetch exists, even if expired, so a
+        // temporary provider outage never blanks the POI layer.
+        $stale = $this->cache->get($bucket, TRUE);
+        if ($stale !== FALSE && !empty($stale->data['features'])) {
+          $collection = $stale->data;
+          $hit = 'STALE';
+        }
+        else {
+          return new JsonResponse(['error' => 'POI provider unavailable.'], Response::HTTP_BAD_GATEWAY);
+        }
       }
 
-      $collection = $this->toGeoJson($rows);
-      $this->cache->set($bucket, $collection, $this->time() + $ttl, $cacheable->getCacheTags());
-      $hit = 'MISS';
+      if ($hit !== 'STALE') {
+        $collection = $this->toGeoJson($rows);
+        $this->cache->set($bucket, $collection, $this->time() + $ttl, $cacheable->getCacheTags());
+        $hit = 'MISS';
+      }
     }
 
     $response = new JsonResponse($collection);
-    // Deliberately NOT a CacheableResponseInterface response: Drupal's
-    // internal page cache would conflate distinct bbox query strings under
-    // this route. Caching is handled by our own bbox-bucket cache above; the
-    // Cache-Control header only gives browsers/CDNs a TTL. Add cache tags and
-    // contexts manually so invalidation still works if a reverse proxy honors
-    // X-Drupal-Cache-Tags.
-    $response->headers->set('Cache-Control', 'public, max-age=' . $ttl);
+    // Serve stale data with a short browser TTL so clients retry soon and we
+    // re-attempt the upstream provider, rather than pinning stale POIs for the
+    // full cache_ttl window.
+    $response->headers->set('Cache-Control', 'public, max-age=' . ($hit === 'STALE' ? 60 : $ttl));
     $response->headers->set('X-Sailbuddy-Poi-Provider', $provider);
     $response->headers->set('X-Sailbuddy-Poi-Cache', $hit);
     $response->headers->set('X-Drupal-Cache-Contexts', 'url.query_args');
