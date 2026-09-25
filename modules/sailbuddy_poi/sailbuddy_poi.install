@@ -1,0 +1,54 @@
+<?php
+
+/**
+ * Install, update and uninstall functions for Sailbuddy POI.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function sailbuddy_poi_schema() {
+  $schema['sailbuddy_poi_cache'] = [
+    'description' => 'Durable GeoJSON cache buckets for POI providers.',
+    'fields' => [
+      'bucket' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'Cache bucket key.',
+      ],
+      'data' => [
+        'type' => 'blob',
+        'size' => 'big',
+        'not null' => TRUE,
+        'description' => 'Serialized GeoJSON FeatureCollection.',
+      ],
+      'created' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Unix timestamp when the row was stored.',
+      ],
+      'expire' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Unix timestamp when the row expires.',
+      ],
+    ],
+    'primary key' => ['bucket'],
+    'indexes' => [
+      'expire' => ['expire'],
+    ],
+  ];
+  return $schema;
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function sailbuddy_poi_uninstall() {
+  \Drupal::database()->schema()->dropTable('sailbuddy_poi_cache');
+}

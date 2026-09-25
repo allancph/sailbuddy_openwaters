@@ -2,12 +2,11 @@
 
 namespace Drupal\sailbuddy_poi\Controller;
 
-use Drupal\Core\Cache\CacheableMetadata;
-use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Routing\TrustedRedirectResponse;
 use Drupal\key\KeyRepositoryInterface;
+use Drupal\sailbuddy_poi\PoiCache;
 use Drupal\sailbuddy_poi\PoiProviderPluginManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -27,9 +26,9 @@ class PoiController extends ControllerBase {
   protected $providerManager;
 
   /**
-   * Cache backend.
+   * Durable GeoJSON cache.
    *
-   * @var \Drupal\Core\Cache\CacheBackendInterface
+   * @var \Drupal\sailbuddy_poi\PoiCache
    */
   protected $cache;
 
@@ -53,7 +52,7 @@ class PoiController extends ControllerBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('plugin.manager.sailbuddy_poi.provider'),
-      $container->get('cache.default'),
+      $container->get('sailbuddy_poi.cache'),
       $container->get('config.factory'),
       $container->get('key.repository')
     );
@@ -62,7 +61,7 @@ class PoiController extends ControllerBase {
   /**
    * Constructs a new PoiController.
    */
-  public function __construct(PoiProviderPluginManager $provider_manager, CacheBackendInterface $cache, ConfigFactoryInterface $config_factory, KeyRepositoryInterface $key_repository) {
+  public function __construct(PoiProviderPluginManager $provider_manager, PoiCache $cache, ConfigFactoryInterface $config_factory, KeyRepositoryInterface $key_repository) {
     $this->providerManager = $provider_manager;
     $this->cache = $cache;
     $this->configFactory = $config_factory;
@@ -102,12 +101,9 @@ class PoiController extends ControllerBase {
       . round($bbox['west'], 2) . ',' . round($bbox['east'], 2)
       . ($provider === 'activecaptain' ? ':z' . $zoom : '');
 
-    $cacheable = new CacheableMetadata();
-    $cacheable->setCacheTags(['sailbuddy_poi:' . $provider]);
-
-    $from_cache = $this->cache->get($bucket);
-    if ($from_cache !== FALSE && !empty($from_cache->data['features'])) {
-      $collection = $from_cache->data;
+    $collection = $this->cache->get($bucket);
+    $hit = NULL;
+    if ($collection !== NULL && !empty($collection['features'])) {
       $hit = 'HIT';
     }
     else {
@@ -122,9 +118,9 @@ class PoiController extends ControllerBase {
         ]);
         // Serve stale data if a previous fetch exists, even if expired, so a
         // temporary provider outage never blanks the POI layer.
-        $stale = $this->cache->get($bucket, TRUE);
-        if ($stale !== FALSE && !empty($stale->data['features'])) {
-          $collection = $stale->data;
+        $stale = $this->cache->getStale($bucket);
+        if ($stale !== NULL && !empty($stale['features'])) {
+          $collection = $stale;
           $hit = 'STALE';
         }
         else {
@@ -134,7 +130,7 @@ class PoiController extends ControllerBase {
 
       if ($hit !== 'STALE') {
         $collection = $this->toGeoJson($rows);
-        $this->cache->set($bucket, $collection, $this->time() + $ttl, $cacheable->getCacheTags());
+        $this->cache->set($bucket, $collection, $ttl);
         $hit = 'MISS';
       }
     }
@@ -272,15 +268,6 @@ class PoiController extends ControllerBase {
       'type' => 'FeatureCollection',
       'features' => $features,
     ];
-  }
-
-  /**
-   * Returns the current time for cache expiry.
-   *
-   * @return int
-   */
-  protected function time() {
-    return \Drupal::time()->getCurrentTime();
   }
 
 }
