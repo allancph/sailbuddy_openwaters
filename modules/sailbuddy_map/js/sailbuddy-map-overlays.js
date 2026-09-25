@@ -437,8 +437,47 @@
     });
   }
 
+  // Consolidate the map credits into a single concise attribution line.
+  // Without this the layer menu shows a long chain gathered from the
+  // maplibre style sources (OSM + Mapterhorn), the OpenWaters tileJSON
+  // url refs (4x "Open Waters") and the Esri satellite layer.
+  // The maplibre-gL wrapper binds its gather-function at layer-init, so a
+  // late async addAttribution() can re-add the long chain regardless of how
+  // often we clear the control. Installing a filter on addAttribution() is
+  // the only robust way to keep exactly one credit line.
+  function tidyMapAttribution(map) {
+    var ac = map && map.attributionControl;
+    if (!ac) { return; }
+    var combined =
+      '&copy; <a href="https://openwaters.io" rel="nofollow noopener">OpenWaters</a> Seamap &middot; ' +
+      '&copy; <a href="https://www.openstreetmap.org/copyright" rel="nofollow noopener">OpenStreetMap</a> contributors &middot; ' +
+      '<a href="https://mapterhorn.com/attribution" rel="nofollow noopener">&copy; Mapterhorn</a> &middot; ' +
+      '&copy; Esri, Maxar, Earthstar Geographics &middot; ' +
+      'Wind &copy; <a href="https://openweathermap.org" rel="nofollow noopener">OpenWeatherMap</a>';
+    if (!ac._sailbuddyTidied) {
+      ac.setPrefix(false);
+      ac._attributions = {};
+      var blockOthers = ac.addAttribution;
+      ac.addAttribution = function (attribution) {
+        if (typeof attribution === 'string' && attribution.indexOf('openwaters.io') === -1) {
+          return undefined;
+        }
+        return blockOthers.call(this, attribution);
+      };
+      ac._sailbuddyTidied = true;
+    }
+    ac.addAttribution(combined);
+    if (typeof ac._update === 'function') {
+      ac._update();
+    }
+  }
+
   function attachOverlays(map, mapid, cfg) {
     var overlays = {};
+
+    tidyMapAttribution(map);
+    map.on('baselayerchange', function () { tidyMapAttribution(map); });
+    window.setTimeout(function () { tidyMapAttribution(map); }, 2500);
 
     // --- AIS layer ---
     var aisLayer = null;
@@ -649,7 +688,7 @@
       });
     }
 
-    if (cfg.mapillary && cfg.mapillary.enable !== false && /node-harbour-/.test(mapid)) {
+    if (cfg.mapillary && cfg.mapillary.enable !== false) {
       mlyLayer = L.geoJSON(null, {
         pointToLayer: mlyPointToLayer,
         style: mlyStyle,
