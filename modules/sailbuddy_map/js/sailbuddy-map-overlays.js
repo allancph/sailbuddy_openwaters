@@ -441,10 +441,9 @@
   // Without this the layer menu shows a long chain gathered from the
   // maplibre style sources (OSM + Mapterhorn), the OpenWaters tileJSON
   // url refs (4x "Open Waters") and the Esri satellite layer.
-  // The maplibre-gL wrapper binds its gather-function at layer-init, so a
-  // late async addAttribution() can re-add the long chain regardless of how
-  // often we clear the control. Installing a filter on addAttribution() is
-  // the only robust way to keep exactly one credit line.
+  // Attribution arrives async at unpredictable times (layeradd, maplibre
+  // GL 'load'), so overriding the control's _update() render function is
+  // the only guarantee that the DOM shows exactly one credit line.
   function tidyMapAttribution(map) {
     var ac = map && map.attributionControl;
     if (!ac) { return; }
@@ -456,20 +455,21 @@
       'Wind &copy; <a href="https://openweathermap.org" rel="nofollow noopener">OpenWeatherMap</a>';
     if (!ac._sailbuddyTidied) {
       ac.setPrefix(false);
-      ac._attributions = {};
-      var blockOthers = ac.addAttribution;
-      ac.addAttribution = function (attribution) {
-        if (typeof attribution === 'string' && attribution.indexOf('openwaters.io') === -1) {
-          return undefined;
+      // The attribution control renders by joining every key in
+      // _attributions. Attributions arrive async at unpredictable moments
+      // (layeradd, maplibre GL 'load' writes the gathered style.sources
+      // chain). Overriding the render function is the only way to guarantee
+      // the DOM always shows exactly this one deduplicated credit line,
+      // regardless of what was registered before or later.
+      ac._update = function () {
+        if (this._container) {
+          this._container.innerHTML = combined;
         }
-        return blockOthers.call(this, attribution);
+        return this;
       };
       ac._sailbuddyTidied = true;
     }
-    ac.addAttribution(combined);
-    if (typeof ac._update === 'function') {
-      ac._update();
-    }
+    ac._update();
   }
 
   function attachOverlays(map, mapid, cfg) {
