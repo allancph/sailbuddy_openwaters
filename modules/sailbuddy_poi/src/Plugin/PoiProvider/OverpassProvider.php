@@ -48,8 +48,17 @@ class OverpassProvider extends PluginBase implements PoiProviderInterface, Conta
     'shop=supermarket' => 'shop',
     'shop=convenience' => 'shop',
     'shop=chandlery' => 'chandlery',
+    'shop=chandler' => 'chandlery',
+    'shop=boat' => 'boat_dealer',
     'shop=laundry' => 'laundry',
     'craft=boatbuilder' => 'boatbuilder',
+    'craft=boatyard' => 'boatbuilder',
+    'craft=boatrepair' => 'boatbuilder',
+    'craft=shipbuilder' => 'shipbuilder',
+    'craft=sailmaker' => 'sailmaker',
+    'industrial=shipyard' => 'shipbuilder',
+    'leisure=slipway' => 'boat_ramp',
+    'natural=mooring' => 'anchorage',
     'tourism=museum' => 'tourist',
     'tourism=attraction' => 'tourist',
     'tourism=artwork' => 'tourist',
@@ -326,8 +335,17 @@ class OverpassProvider extends PluginBase implements PoiProviderInterface, Conta
       case 'chandlery':
         return $this->t('Sejlerforretning');
 
+      case 'boat_dealer':
+        return $this->t('Bådforhandler');
+
       case 'boatbuilder':
         return $this->t('Bådværft');
+
+      case 'shipbuilder':
+        return $this->t('Skibsværft');
+
+      case 'sailmaker':
+        return $this->t('Sejlmager');
 
       case 'laundry':
         return $this->t('Vaskeri');
